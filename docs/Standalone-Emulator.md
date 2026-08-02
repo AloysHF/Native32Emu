@@ -34,7 +34,8 @@ native32-emu path/to/game.zip
 When loading from a `.zip` file, the emulator starts the FHUI menu. Selecting a
 game launches it; pressing **ESC** during gameplay returns to the menu. Pressing
 **ESC** on the menu itself exits the emulator. When loading a `.smf` file
-directly, **ESC** exits as usual.
+directly, **ESC** exits as usual. This matches the RetroArch core's back-action
+behavior, where RetroPad **Select** performs the same return-or-exit operation.
 
 You can always print the built-in help with:
 

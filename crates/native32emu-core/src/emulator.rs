@@ -58,7 +58,7 @@ pub struct Emulator {
     active_video_name: Option<String>,
     /// The initial file loaded at startup (typically FHUI.smf from a ZIP).
     /// Set to None when the user loaded a game directly (not from a menu).
-    /// Used to support "return to menu" on ESC.
+    /// Used to support the frontends' shared back action.
     pub initial_file: Option<PathBuf>,
     /// When true, cutscene videos are skipped automatically as soon as they
     /// become active, instead of waiting for the user to press A/B.
@@ -94,8 +94,8 @@ impl Emulator {
 
         let save_manager = SaveManager::new(&game_path);
 
-        // When loaded from a ZIP, remember the FHUI.smf path so pressing ESC
-        // in a game returns to the menu instead of exiting.
+        // When loaded from a ZIP, remember the FHUI.smf path so the frontend's
+        // back action can return to the menu instead of exiting.
         let initial_file = if is_zip {
             Some(game_path.clone())
         } else {
@@ -154,6 +154,23 @@ impl Emulator {
         self.initial_file
             .as_ref()
             .is_some_and(|p| *p != self.filename)
+    }
+
+    /// Return to the initial ZIP menu when one is available.
+    ///
+    /// Returns `true` after reloading the menu and `false` when the frontend
+    /// should handle the back action by ending the current emulation session.
+    pub fn try_return_to_menu(&mut self) -> Result<bool> {
+        if !self.can_return_to_menu() {
+            return Ok(false);
+        }
+
+        let menu_path = self
+            .initial_file
+            .clone()
+            .expect("a returnable menu must have an initial file");
+        self.reload_from_path(menu_path)?;
+        Ok(true)
     }
 
     /// Reload the emulator from the given file path, performing a full state

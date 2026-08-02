@@ -54,6 +54,18 @@ platform-specific installation requirements:
 | D-Pad Down | `0x1e00` | Down |
 | A (SNES East) | `0x8800` | B / Menu |
 | B (SNES South) | `0x4000` | A |
+| Select (Right Shift) | — | Return to the ZIP menu / exit |
+
+### Return and Exit Behavior
+
+RetroPad **Select** is the core's back action. When a `.zip` package has
+launched one of its games, pressing Select returns to the package's `FHUI.smf`
+menu. Pressing Select from that menu, or while running a directly loaded
+`.smf`, `.sgm`, or `.ssl` file, asks the frontend to close the core.
+
+Select is handled on the initial press only and is not sent to Native32 game
+input. If Select is also configured as a RetroArch hotkey, remap either the
+core action or the conflicting frontend hotkey.
 
 ## Core Options
 

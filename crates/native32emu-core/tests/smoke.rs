@@ -714,6 +714,49 @@ fn zip_file_loads_fhui() {
         "ZIP-loaded FHUI.smf produced a blank frame"
     );
 }
+
+/// The shared back action should return a ZIP-loaded child game to FHUI.
+#[test]
+#[ignore = "requires local Native32 game assets (set NATIVE32_GAME_DIR)"]
+fn back_action_returns_to_zip_menu() {
+    let dir = match game_dir() {
+        Some(d) => d,
+        None => {
+            eprintln!("skipping: no game directory found (set NATIVE32_GAME_DIR)");
+            return;
+        }
+    };
+    let Some(zip_path) = dir
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|root| root.join("tmp").join("native32_game.zip"))
+        .filter(|p| p.exists())
+    else {
+        eprintln!("skipping: native32_game.zip not found");
+        return;
+    };
+
+    let mut emu = Emulator::from_path(zip_path, 100).expect("failed to load ZIP game");
+    let menu_path = emu.filename.clone();
+    let mut games = Vec::new();
+    collect_games(
+        menu_path.parent().expect("FHUI path has no parent"),
+        &mut games,
+    );
+    let child_game = games
+        .into_iter()
+        .find(|path| *path != menu_path)
+        .expect("ZIP package contains no child game");
+
+    emu.reload_from_path(child_game)
+        .expect("failed to load child game");
+    assert!(emu.try_return_to_menu().expect("back action failed"));
+    assert_eq!(emu.filename, menu_path);
+    assert!(!emu
+        .try_return_to_menu()
+        .expect("back action at the menu failed"));
+}
+
 /// A placed Pirate bomb must start at the template's first visible frame.
 #[test]
 #[ignore = "requires local Native32 game assets (set NATIVE32_GAME_DIR)"]
