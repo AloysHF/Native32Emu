@@ -10,9 +10,13 @@ use native32emu_core::emulator::Emulator;
 use native32emu_core::input_handler::InputHandler;
 use std::ffi::{c_void, CStr};
 use std::ptr;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Global emulator instance
 static mut EMULATOR: Option<Emulator> = None;
+
+/// Previous RetroPad Select state, used to trigger the back action once per press.
+static RETURN_BUTTON_DOWN: AtomicBool = AtomicBool::new(false);
 
 /// Get a reference to the emulator
 unsafe fn get_emulator() -> &'static Emulator {
@@ -88,6 +92,7 @@ pub extern "C" fn retro_deinit() {
     unsafe {
         EMULATOR = None;
     }
+    RETURN_BUTTON_DOWN.store(false, Ordering::Relaxed);
     log::info!("Native32Emu libretro core deinitialized");
 }
 
@@ -122,6 +127,7 @@ pub extern "C" fn retro_set_controller_port_device(_port: u32, _device: u32) {
 #[no_mangle]
 pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
     unsafe {
+        RETURN_BUTTON_DOWN.store(false, Ordering::Relaxed);
         let game_info = &*info;
 
         // Check if path is valid
@@ -183,6 +189,7 @@ pub extern "C" fn retro_unload_game() {
     unsafe {
         EMULATOR = None;
     }
+    RETURN_BUTTON_DOWN.store(false, Ordering::Relaxed);
     log::info!("Game unloaded");
 }
 
@@ -224,11 +231,28 @@ pub extern "C" fn retro_run() {
         // 1. Poll input
         callbacks::input_poll();
 
-        // 2. Query joypad button state and convert to Native32 keycodes
+        // 2. Handle the frontend-level back action on the Select press edge.
+        if return_button_just_pressed(0) {
+            match emu.try_return_to_menu() {
+                Ok(true) => log::info!("Returned to the ZIP game menu"),
+                Ok(false) => {
+                    log::info!("Requesting frontend shutdown");
+                    callbacks::environment(RETRO_ENVIRONMENT_SHUTDOWN, ptr::null_mut());
+                    return;
+                }
+                Err(e) => {
+                    log::error!("Failed to reload the ZIP game menu: {}", e);
+                    callbacks::environment(RETRO_ENVIRONMENT_SHUTDOWN, ptr::null_mut());
+                    return;
+                }
+            }
+        }
+
+        // 3. Query joypad button state and convert to Native32 keycodes
         let buttons = query_joypad_buttons(0);
         emu.set_buttons(&buttons);
 
-        // 3. During a cutscene, suppress game input and
+        // 4. During a cutscene, suppress game input and
         // allow the A or B button to skip the logo/cutscene videos instead.
         // When auto-skip is enabled, skip as soon as the cutscene starts.
         if emu.is_cutscene_active()
@@ -239,19 +263,19 @@ pub extern "C" fn retro_run() {
             emu.skip_cutscene();
         }
 
-        // 4. Execute one tick of emulation
+        // 5. Execute one tick of emulation
         emu.tick();
 
-        // 5. Render the frame
+        // 6. Render the frame
         emu.draw();
 
-        // 6. Output video frame
+        // 7. Output video frame
         let framebuffer = emu.get_framebuffer();
         let (width, height) = emu.get_resolution();
         let pitch = width as usize * 4; // XRGB8888 = 4 bytes per pixel
         callbacks::video_refresh(framebuffer.as_ptr() as *const c_void, width, height, pitch);
 
-        // 7. Output audio samples
+        // 8. Output audio samples
         let audio_samples = emu.get_pending_audio_samples();
         if !audio_samples.is_empty() {
             callbacks::audio_sample_batch(
@@ -544,6 +568,13 @@ fn register_input_descriptors() {
             id: RETRO_DEVICE_ID_JOYPAD_B,
             description: c"B Button".as_ptr(),
         },
+        retro_input_descriptor {
+            port: 0,
+            device: RETRO_DEVICE_JOYPAD,
+            index: 0,
+            id: RETRO_DEVICE_ID_JOYPAD_SELECT,
+            description: c"Return / Exit".as_ptr(),
+        },
         // Terminator
         retro_input_descriptor {
             port: 0,
@@ -558,6 +589,18 @@ fn register_input_descriptors() {
         RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS,
         descriptors.as_ptr() as *mut c_void,
     );
+}
+
+/// Return whether the RetroPad Select button was newly pressed this frame.
+fn return_button_just_pressed(port: u32) -> bool {
+    let is_down =
+        callbacks::input_state(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT) != 0;
+    let was_down = RETURN_BUTTON_DOWN.swap(is_down, Ordering::Relaxed);
+    is_rising_edge(is_down, was_down)
+}
+
+fn is_rising_edge(is_down: bool, was_down: bool) -> bool {
+    is_down && !was_down
 }
 
 /// Query joypad button state and convert to Native32 keycodes.
@@ -591,4 +634,17 @@ fn query_joypad_buttons(port: u32) -> Vec<u16> {
     }
 
     buttons
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_rising_edge;
+
+    #[test]
+    fn rising_edge_only_fires_on_initial_press() {
+        assert!(!is_rising_edge(false, false));
+        assert!(is_rising_edge(true, false));
+        assert!(!is_rising_edge(true, true));
+        assert!(!is_rising_edge(false, true));
+    }
 }

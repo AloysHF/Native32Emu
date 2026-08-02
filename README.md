@@ -53,6 +53,9 @@ and all command-line options.
 
 Install **Native32 (Native32Emu)** from RetroArch's Core Downloader, or install
 the release files manually, then load a supported game through **Load Content**.
+Press RetroPad **Select** to return from a ZIP-loaded game to its FHUI menu;
+press it again on that menu, or while running a directly loaded file, to close
+the core.
 
 See the [RetroArch Core](docs/RetroArch-Core.md) guide for installation,
 supported platforms and features, RetroPad mapping, core options, and cheats.

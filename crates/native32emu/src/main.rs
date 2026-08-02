@@ -199,17 +199,16 @@ fn main() -> Result<()> {
         if esc_cooldown > 0 {
             esc_cooldown -= 1;
         } else if window.is_key_down(minifb::Key::Escape) {
-            if emu.can_return_to_menu() {
-                if let Some(menu_path) = emu.initial_file.clone() {
-                    if let Err(e) = emu.reload_from_path(menu_path) {
-                        log::error!("Failed to reload menu: {}", e);
-                        break;
-                    }
+            match emu.try_return_to_menu() {
+                Ok(true) => {
+                    esc_cooldown = 15; // ~0.5s at 30fps, enough for key release
+                    continue;
                 }
-                esc_cooldown = 15; // ~0.5s at 30fps, enough for key release
-                continue;
-            } else {
-                break;
+                Ok(false) => break,
+                Err(e) => {
+                    log::error!("Failed to reload menu: {}", e);
+                    break;
+                }
             }
         }
 
