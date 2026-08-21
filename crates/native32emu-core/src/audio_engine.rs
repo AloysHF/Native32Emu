@@ -193,7 +193,7 @@ impl AudioEngine {
         };
 
         if self.tone_active {
-            for frame in result.chunks_exact_mut(2) {
+            for frame in result.as_chunks_mut::<2>().0 {
                 let sample = (self.tone_phase * 2.0 * std::f64::consts::PI * 440.0
                     / sample_rate as f64)
                     .sin();
@@ -431,7 +431,9 @@ impl AudioEngine {
         }
 
         let samples: Vec<f32> = data
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]) as f32 / 32768.0)
             .collect();
         if samples.is_empty() {
@@ -610,7 +612,7 @@ impl AudioEngine {
 #[cfg(not(feature = "standalone"))]
 fn raw_pcm_to_stereo(data: &[u8]) -> Vec<i16> {
     let mut output = Vec::with_capacity(data.len());
-    for chunk in data.chunks_exact(2) {
+    for chunk in data.as_chunks::<2>().0 {
         let sample = i16::from_le_bytes([chunk[0], chunk[1]]);
         output.push(sample);
         output.push(sample);

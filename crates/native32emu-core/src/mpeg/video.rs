@@ -1164,17 +1164,16 @@ impl Video {
     fn decode_motion_vector(&mut self, r_size: i32, mut motion: i32) -> i32 {
         let fscale = 1 << r_size;
         let m_code = self.buffer.read_vlc(MOTION) as i32;
-        let d;
-        if m_code != 0 && fscale != 1 {
+        let d = if m_code != 0 && fscale != 1 {
             let r = self.buffer.read(r_size as usize) as i32;
             let mut dd = ((m_code.abs() - 1) << r_size) + r + 1;
             if m_code < 0 {
                 dd = -dd;
             }
-            d = dd;
+            dd
         } else {
-            d = m_code;
-        }
+            m_code
+        };
 
         motion += d;
         if motion > (fscale << 4) - 1 {

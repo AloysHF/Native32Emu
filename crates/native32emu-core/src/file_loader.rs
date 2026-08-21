@@ -578,7 +578,12 @@ fn parse_resolution(gen_str: &str) -> Option<(u32, u32)> {
 fn endian_swap_pcm16(data: &[u8]) -> Vec<u8> {
     let len = data.len() & 0xFFFFFFFE;
     let mut result = vec![0u8; len];
-    for (out, input) in result.chunks_exact_mut(2).zip(data[..len].chunks_exact(2)) {
+    for (out, input) in result
+        .as_chunks_mut::<2>()
+        .0
+        .iter_mut()
+        .zip(data[..len].as_chunks::<2>().0.iter())
+    {
         out[0] = input[1];
         out[1] = input[0];
     }
