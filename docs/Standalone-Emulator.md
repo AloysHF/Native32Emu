@@ -7,7 +7,7 @@ scaling, and every command-line option.
 ## Installation
 
 Download the latest standalone binary for your platform from the
-[Releases](https://github.com/jiangxincode/Native32Emu/releases) page.
+[Releases](https://github.com/AloysHF/Native32Emu/releases) page.
 
 You can also build it from source:
 

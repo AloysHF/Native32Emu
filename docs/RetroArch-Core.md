@@ -15,7 +15,7 @@ supported frontend features, controls, core options, and cheats.
 ### Manual Installation
 
 Download the core from the
-[Releases](https://github.com/jiangxincode/Native32Emu/releases) page. Copy
+[Releases](https://github.com/AloysHF/Native32Emu/releases) page. Copy
 `native32emu_libretro.dll` (`.so` on Linux or `.dylib` on macOS) to
 RetroArch's `cores/` directory, and copy `native32emu_libretro.info` to its
 `info/` directory.

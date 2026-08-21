@@ -19,6 +19,6 @@
 
 ## Getting Started
 
-Check the [open issues](https://github.com/jiangxincode/Native32Emu/issues) for tasks labeled `good first issue` or `help wanted`. If you have questions, feel free to open a discussion issue.
+Check the [open issues](https://github.com/AloysHF/Native32Emu/issues) for tasks labeled `good first issue` or `help wanted`. If you have questions, feel free to open a discussion issue.
 
 To understand the Native32 game file formats (`.smf`, `.SSL`, `.dat`, `.mpg`, `.ssl_sav`) and their relationships, see [Game File Formats](Game-File-Formats.md).

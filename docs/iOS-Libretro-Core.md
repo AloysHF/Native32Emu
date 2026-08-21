@@ -11,7 +11,7 @@ Native32Emu runs as a libretro core on RetroArch, allowing you to play Native32 
 - iPhone or iPad (arm64, iOS 15+)
 - RetroArch 1.17.0 IPA ([official download](https://buildbot.libretro.com/stable/1.17.0/apple/ios-arm64/RetroArch.ipa))
   - Version 1.17.0 is recommended; newer versions have a different folder structure that makes manual injection more complex
-- Download `native32-emu-ios-libretro.tar.gz` from the [Releases](https://github.com/jiangxincode/Native32Emu/releases) page. It contains:
+- Download `native32-emu-ios-libretro.tar.gz` from the [Releases](https://github.com/AloysHF/Native32Emu/releases) page. It contains:
   - `native32emu_libretro_ios.dylib` — core binary (real devices: arm64 + x86_64 universal)
   - `native32emu_libretro.info` — core metadata
 - A file manager and IPA signing app (e.g. ESign, SideStore, or AltStore)
@@ -126,6 +126,6 @@ Special thanks to **celiocasttro** for the invaluable contributions to iOS suppo
 
 If you run into issues installing this core on iOS, the following threads may help:
 
-- [#58](https://github.com/jiangxincode/Native32Emu/issues/58)
-- [#71](https://github.com/jiangxincode/Native32Emu/issues/71)
-- [#78](https://github.com/jiangxincode/Native32Emu/issues/78)
+- [#58](https://github.com/AloysHF/Native32Emu/issues/58)
+- [#71](https://github.com/AloysHF/Native32Emu/issues/71)
+- [#78](https://github.com/AloysHF/Native32Emu/issues/78)
