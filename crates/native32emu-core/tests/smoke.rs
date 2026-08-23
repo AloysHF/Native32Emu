@@ -36,6 +36,19 @@ fn game_dir() -> Option<PathBuf> {
     candidate.filter(|p| p.is_dir())
 }
 
+fn packed_game_dir() -> Option<PathBuf> {
+    if let Ok(dir) = std::env::var("NATIVE32_PACKED_GAME_DIR") {
+        let path = PathBuf::from(dir);
+        return path.is_dir().then_some(path);
+    }
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    manifest
+        .parent()
+        .and_then(|path| path.parent())
+        .map(|root| root.join("tmp").join("native32_NoKaraOK"))
+        .filter(|path| path.is_dir())
+}
+
 /// Recursively collect playable game files (.smf / .ssl), skipping the NES
 /// games and save files.
 fn collect_games(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -141,6 +154,26 @@ fn run_one(path: &Path) -> Result<bool, String> {
     }
 
     Ok(frame_has_content(emu.get_framebuffer()))
+}
+
+#[test]
+#[ignore = "requires packed local Native32 assets (set NATIVE32_PACKED_GAME_DIR)"]
+fn packed_dragon_background_decodes() {
+    let Some(dir) = packed_game_dir() else {
+        eprintln!("skipping: no packed game directory found");
+        return;
+    };
+    let game = find_asset(&dir, "Dragon.smf").expect("Dragon.smf not found");
+    let data = std::fs::read(game).expect("read Dragon.smf");
+    let mut reader = native32emu_core::file_loader::Native32Reader::new(data);
+    reader.init().expect("initialize packed Dragon.smf");
+
+    let background = reader.get_image(2).expect("decode Dragon background");
+    assert_eq!((background.width, background.height), (322, 242));
+    assert!(
+        frame_has_content(&background.pixels),
+        "Dragon background is blank"
+    );
 }
 
 #[test]

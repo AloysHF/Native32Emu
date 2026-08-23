@@ -1321,6 +1321,7 @@ dependencies = [
  "anyhow",
  "cargo-husky",
  "crc32fast",
+ "flate2",
  "image",
  "log",
  "minifb",
