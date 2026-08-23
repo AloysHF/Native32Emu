@@ -59,9 +59,10 @@ platform-specific installation requirements:
 ### Return and Exit Behavior
 
 RetroPad **Select** is the core's back action. When a `.zip` package has
-launched one of its games, pressing Select returns to the package's `FHUI.smf`
-menu. Pressing Select from that menu, or while running a directly loaded
-`.smf`, `.sgm`, or `.ssl` file, asks the frontend to close the core.
+launched one of its games, pressing Select returns to the package's initial
+`FHUI.smf` or `NA32UI.smf` menu. Pressing Select from that menu, or while
+running a directly loaded `.smf`, `.sgm`, or `.ssl` file, asks the frontend to
+close the core.
 
 Select is handled on the initial press only and is not sent to Native32 game
 input. If Select is also configured as a RetroArch hotkey, remap either the

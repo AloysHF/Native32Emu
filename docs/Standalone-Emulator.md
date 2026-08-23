@@ -25,17 +25,18 @@ The standalone emulator accepts `.smf`, `.sgm`, `.ssl`, and `.zip` files.
 # Load a game directly
 native32-emu path/to/game.smf
 
-# Load a ZIP package containing FHUI.smf
+# Load a ZIP package containing FHUI.smf or NA32UI.smf
 native32-emu path/to/game.zip
 ```
 
 ### ZIP Mode
 
-When loading from a `.zip` file, the emulator starts the FHUI menu. Selecting a
-game launches it; pressing **ESC** during gameplay returns to the menu. Pressing
-**ESC** on the menu itself exits the emulator. When loading a `.smf` file
-directly, **ESC** exits as usual. This matches the RetroArch core's back-action
-behavior, where RetroPad **Select** performs the same return-or-exit operation.
+When loading from a `.zip` file, the emulator starts the package's `FHUI.smf`
+or `NA32UI.smf` menu. Selecting a game launches it; pressing **ESC** during
+gameplay returns to the menu. Pressing **ESC** on the menu itself exits the
+emulator. When loading a `.smf` file directly, **ESC** exits as usual. This
+matches the RetroArch core's back-action behavior, where RetroPad **Select**
+performs the same return-or-exit operation.
 
 You can always print the built-in help with:
 
@@ -53,7 +54,7 @@ native32-emu [OPTIONS] <GAME_PATH>
 
 | Option | Value | Default | Description |
 |---|---|---|---|
-| `<GAME_PATH>` | path | *required* | Path to the game file (`.smf`, `.sgm`, `.ssl`, or `.zip`). For `.zip` files, extracts and loads FHUI.smf automatically. |
+| `<GAME_PATH>` | path | *required* | Path to the game file (`.smf`, `.sgm`, `.ssl`, or `.zip`). For `.zip` files, extracts and loads `FHUI.smf` or `NA32UI.smf` automatically. |
 | `-s, --scale <N>` | `1`–`16` | `1` | Integer scaling factor for the window. |
 | `-f, --fullscreen` | flag | off | Run in borderless fullscreen at the desktop resolution. |
 | `-v, --volume <N>` | `0`–`100` | `100` | Volume level (`0` = mute, `100` = original). |
@@ -198,7 +199,7 @@ native32-emu --scale 4 --filter xbrz game.smf
 # Basic usage
 native32-emu path/to/game.smf
 
-# Load from ZIP archive (auto-extracts and loads FHUI.smf)
+# Load from ZIP archive (auto-extracts and loads FHUI.smf or NA32UI.smf)
 native32-emu path/to/game.zip
 
 # 2x scaling with 80% volume

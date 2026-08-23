@@ -56,7 +56,7 @@ pub struct Emulator {
     /// Active cutscene player, if a video is currently playing.
     pub video_player: Option<crate::mpeg::VideoPlayer>,
     active_video_name: Option<String>,
-    /// The initial file loaded at startup (typically FHUI.smf from a ZIP).
+    /// The initial menu file loaded at startup from a ZIP package.
     /// Set to None when the user loaded a game directly (not from a menu).
     /// Used to support the frontends' shared back action.
     pub initial_file: Option<PathBuf>,
@@ -72,7 +72,7 @@ impl Emulator {
     /// Create a new emulator from a game file path.
     ///
     /// Supports .smf, .sgm, .ssl, and .zip files. For .zip files, extracts
-    /// the archive and loads FHUI.smf (main menu) from the extracted directory.
+    /// the archive and loads FHUI.smf or NA32UI.smf from its root.
     pub fn from_path(path: PathBuf, volume: u32) -> Result<Self> {
         // Check if this is a ZIP file
         let is_zip = is_zip_file(&path);
@@ -94,7 +94,7 @@ impl Emulator {
 
         let save_manager = SaveManager::new(&game_path);
 
-        // When loaded from a ZIP, remember the FHUI.smf path so the frontend's
+        // When loaded from a ZIP, remember the menu path so the frontend's
         // back action can return to the menu instead of exiting.
         let initial_file = if is_zip {
             Some(game_path.clone())
@@ -147,7 +147,7 @@ impl Emulator {
         }
     }
 
-    /// Whether the emulator can return to an initial menu (e.g. FHUI.smf).
+    /// Whether the emulator can return to its initial ZIP menu.
     /// Returns true only when an initial menu file was set (ZIP mode) and the
     /// current file is different (i.e. we are in a game, not already on the menu).
     pub fn can_return_to_menu(&self) -> bool {
@@ -192,7 +192,6 @@ impl Emulator {
         self.content_loader = ContentLoader::new();
         self.cur_frame_objects.clear();
         self.menu_context = None;
-
         self.filename = path;
         self.reader = Native32Reader::new(data);
         self.reader.init()?;
@@ -1068,6 +1067,19 @@ impl VmHost for Emulator {
                     // NES ROM browsing is handled by the original platform's NES
                     // emulator, which is out of scope for this core.
                     log::debug!("Ignoring NAV_SelectNES('{}')", url);
+                }
+                "NAV_SelectNa32" => {
+                    // The platform selector hands control to the sibling
+                    // Native32 menu after its selection animation finishes.
+                    log::info!("NAV_SelectNa32");
+                    self.content_loader.queue_load("NA32UI.smf");
+                }
+                "NAV_SelectKOK" => {
+                    // Karaoke requires a separate firmware service that is not
+                    // part of the Native32 runtime. Restart the selector because
+                    // its confirmation animation no longer accepts input.
+                    log::warn!("NAV_SelectKOK is unsupported; restarting the selector");
+                    self.content_loader.queue_load("SELECT.SSL");
                 }
                 other => {
                     log::warn!("Unhandled GetUrl2('{}', '{}') [{}]", url, target, other);
