@@ -26,7 +26,7 @@ Native32 is a game format developed by Sunplus for DVD player and TV chipsets (c
 - **Sprite/movie system** — animation, cloning, visibility control, depth-sorted rendering
 - **Audio playback** — finite/infinite-loop MP3 music mixed with raw 16-bit PCM sound effects (11025Hz for YUV games, 22050Hz for ARGB games), output as stereo with mono sources duplicated across both channels
 - **MPEG-1 cutscenes** — pure-Rust MPEG-1 video + MP2 audio decoder plays `SSL_PlayNext` logo/cutscene videos (no C dependency); skippable with A/B
-- **ZIP archive support** — load game packages directly from `.zip` files (auto-extracts and loads FHUI.smf)
+- **ZIP archive support** — load game packages directly from `.zip` files (auto-extracts and loads `FHUI.smf` or `NA32UI.smf`)
 - **Keyboard input** — configurable key remapping
 - **Save system** — `.ssl_sav` file persistence
 - **SSL multi-file content** — seamless switching between game levels/files
@@ -53,7 +53,7 @@ and all command-line options.
 
 Install **Native32 (Native32Emu)** from RetroArch's Core Downloader, or install
 the release files manually, then load a supported game through **Load Content**.
-Press RetroPad **Select** to return from a ZIP-loaded game to its FHUI menu;
+Press RetroPad **Select** to return from a ZIP-loaded game to its package menu;
 press it again on that menu, or while running a directly loaded file, to close
 the core.
 

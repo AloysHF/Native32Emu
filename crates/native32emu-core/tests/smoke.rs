@@ -11,6 +11,7 @@
 //! By default it looks for games in `<repo>/tmp/native32_game`. Override the
 //! location with the `NATIVE32_GAME_DIR` environment variable.
 
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use native32emu_core::action_vm::VmHost;
@@ -281,6 +282,53 @@ fn gunfire_menu_advances_on_confirm() {
         "menu did not advance after holding confirm: still on {final_name} \
          (selection animation appears frozen)"
     );
+}
+
+#[test]
+#[ignore = "requires local Native32 game assets (set NATIVE32_GAME_DIR)"]
+fn nav_select_na32_loads_native32_menu() {
+    let dir = game_dir().expect("no game directory found");
+    let selector = find_asset(&dir, "SELECT.SSL").expect("SELECT.SSL not found");
+    let mut emu = Emulator::from_path(selector, 100).expect("load platform selector");
+
+    VmHost::get_url(&mut emu, "NULL", "NAV+NAV_SelectNa32+reValue");
+    assert_eq!(
+        emu.content_loader.pending_content.as_deref(),
+        Some("NA32UI.smf")
+    );
+
+    emu.tick();
+    let final_name = emu
+        .filename
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("");
+    assert!(
+        final_name.eq_ignore_ascii_case("NA32UI.smf"),
+        "Native32 selection loaded {final_name} instead of NA32UI.smf"
+    );
+}
+
+#[test]
+#[ignore = "requires local Native32 game assets (set NATIVE32_GAME_DIR)"]
+fn nav_select_kok_restarts_selector() {
+    let dir = game_dir().expect("no game directory found");
+    let selector = find_asset(&dir, "SELECT.SSL").expect("SELECT.SSL not found");
+    let mut emu = Emulator::from_path(selector, 100).expect("load platform selector");
+    let original = emu.filename.clone();
+    emu.vm
+        .vars
+        .insert("reload_probe".to_string(), "present".to_string());
+
+    VmHost::get_url(&mut emu, "NULL", "NAV+NAV_SelectKOK+reValue");
+    assert_eq!(
+        emu.content_loader.pending_content.as_deref(),
+        Some("SELECT.SSL")
+    );
+
+    emu.tick();
+    assert_eq!(emu.filename, original);
+    assert!(!emu.vm.vars.contains_key("reload_probe"));
 }
 
 #[test]
@@ -715,7 +763,61 @@ fn zip_file_loads_fhui() {
     );
 }
 
-/// The shared back action should return a ZIP-loaded child game to FHUI.
+/// A ZIP with NA32UI.smf as its only menu entry point should boot it and use it
+/// as the back-action target.
+#[test]
+#[ignore = "requires local Native32 game assets (set NATIVE32_GAME_DIR)"]
+fn zip_file_loads_na32ui() {
+    let dir = game_dir().expect("no game directory found");
+    let menu = find_asset(&dir, "NA32UI.smf").expect("NA32UI.smf not found");
+    let mut games = Vec::new();
+    collect_games(&dir, &mut games);
+    let child = games
+        .into_iter()
+        .find(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| {
+                    !name.eq_ignore_ascii_case("NA32UI.smf")
+                        && !name.eq_ignore_ascii_case("FHUI.smf")
+                })
+        })
+        .expect("no child game found");
+
+    let temp_dir = tempfile::tempdir().expect("create temporary directory");
+    let zip_path = temp_dir.path().join("na32ui-package.zip");
+    let zip_file = std::fs::File::create(&zip_path).expect("create test ZIP");
+    let mut zip = zip::ZipWriter::new(zip_file);
+    let options =
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+
+    zip.start_file("NA32UI.smf", options)
+        .expect("add NA32UI.smf");
+    zip.write_all(&std::fs::read(menu).expect("read NA32UI.smf"))
+        .expect("write NA32UI.smf");
+    zip.start_file("GAME.smf", options).expect("add child game");
+    zip.write_all(&std::fs::read(child).expect("read child game"))
+        .expect("write child game");
+    zip.finish().expect("finish test ZIP");
+
+    let mut emu = Emulator::from_path(zip_path, 100).expect("load NA32UI ZIP package");
+    let menu_path = emu.filename.clone();
+    assert!(menu_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case("NA32UI.smf")));
+
+    let child_path = menu_path
+        .parent()
+        .expect("menu path has no parent")
+        .join("GAME.smf");
+    emu.reload_from_path(child_path)
+        .expect("load extracted child game");
+    assert!(emu.try_return_to_menu().expect("return to NA32UI menu"));
+    assert_eq!(emu.filename, menu_path);
+}
+
+/// The shared back action should return a ZIP-loaded child game to its menu.
 #[test]
 #[ignore = "requires local Native32 game assets (set NATIVE32_GAME_DIR)"]
 fn back_action_returns_to_zip_menu() {

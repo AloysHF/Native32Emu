@@ -1,12 +1,14 @@
 // Archive loader for ZIP game packages.
 //
 // Native32 games are distributed as ZIP archives containing a complete game
-// directory structure with FHUI.smf (main menu) and game subdirectories.
+// directory structure, an SMF menu entry point, and game subdirectories.
 // This module handles extraction and locating the entry-point SMF file.
 
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
+
+const ZIP_ENTRYPOINTS: [&str; 2] = ["FHUI.smf", "NA32UI.smf"];
 
 /// Extract a ZIP archive to a temporary directory and return the path.
 ///
@@ -58,50 +60,63 @@ pub fn extract_zip(zip_path: &Path) -> Result<(tempfile::TempDir, PathBuf)> {
     Ok((temp_dir, extract_path))
 }
 
-/// Find the FHUI.smf (main menu) file in an extracted directory.
-///
-/// Searches for FHUI.smf in the root of the extracted directory, handling
-/// case-insensitive matching. Returns the path if found, or None if not found.
-pub fn find_fhui_in_directory(dir: &Path) -> Option<PathBuf> {
-    // Try exact match first
-    let fhui_path = dir.join("FHUI.smf");
-    if fhui_path.exists() {
-        return Some(fhui_path);
-    }
+fn find_root_file(dir: &Path, file_name: &str) -> Option<PathBuf> {
+    let mut case_insensitive_match = None;
+    for entry in fs::read_dir(dir).ok()?.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
 
-    // Try case-insensitive match
-    if let Ok(entries) = fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            let name_str = name.to_string_lossy();
-            if name_str.eq_ignore_ascii_case("FHUI.smf") {
-                return Some(entry.path());
-            }
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name == file_name {
+            return Some(path);
+        }
+        if case_insensitive_match.is_none() && name.eq_ignore_ascii_case(file_name) {
+            case_insensitive_match = Some(path);
         }
     }
 
-    None
+    case_insensitive_match
 }
 
-/// Process a ZIP file: extract it and find the FHUI.smf entry point.
+/// Find a supported menu entry point in an extracted ZIP root.
+///
+/// FHUI takes precedence for backward compatibility, with NA32UI used when
+/// FHUI is absent. Matching is case-insensitive.
+pub fn find_entrypoint_in_directory(dir: &Path) -> Option<PathBuf> {
+    ZIP_ENTRYPOINTS
+        .iter()
+        .find_map(|file_name| find_root_file(dir, file_name))
+}
+
+/// Find FHUI.smf specifically, preserving the original public helper.
+pub fn find_fhui_in_directory(dir: &Path) -> Option<PathBuf> {
+    find_root_file(dir, "FHUI.smf")
+}
+
+/// Process a ZIP file: extract it and find its menu entry point.
 ///
 /// Returns the `TempDir` handle (keep it alive to preserve the directory) and
-/// the path to the extracted FHUI.smf file. The directory is automatically
+/// the path to the extracted entry-point SMF file. The directory is automatically
 /// deleted when the `TempDir` is dropped.
 pub fn load_zip_game(zip_path: &Path) -> Result<(tempfile::TempDir, PathBuf)> {
     log::info!("Extracting ZIP archive: {}", zip_path.display());
 
     let (temp_dir, extract_path) = extract_zip(zip_path)?;
 
-    // Find FHUI.smf in the extracted directory
-    match find_fhui_in_directory(&extract_path) {
-        Some(fhui_path) => {
-            log::info!("Found FHUI.smf: {}", fhui_path.display());
-            Ok((temp_dir, fhui_path))
+    match find_entrypoint_in_directory(&extract_path) {
+        Some(entrypoint) => {
+            log::info!("Found ZIP entry point: {}", entrypoint.display());
+            Ok((temp_dir, entrypoint))
         }
         None => {
             // temp_dir is dropped here, automatically cleaning up the directory
-            anyhow::bail!("No FHUI.smf found in ZIP archive: {}", zip_path.display());
+            anyhow::bail!(
+                "No supported entry point (FHUI.smf or NA32UI.smf) found in ZIP archive: {}",
+                zip_path.display()
+            );
         }
     }
 }
@@ -191,6 +206,27 @@ mod tests {
     }
 
     #[test]
+    fn test_find_entrypoint_falls_back_to_na32ui() {
+        let dir = tempfile::tempdir().unwrap();
+        let na32ui_path = dir.path().join("na32ui.SMF");
+        fs::write(&na32ui_path, b"fake").unwrap();
+
+        let result = find_entrypoint_in_directory(dir.path());
+        assert_eq!(result, Some(na32ui_path));
+    }
+
+    #[test]
+    fn test_find_entrypoint_prefers_fhui() {
+        let dir = tempfile::tempdir().unwrap();
+        let fhui_path = dir.path().join("fhui.SMF");
+        fs::write(&fhui_path, b"fake").unwrap();
+        fs::write(dir.path().join("NA32UI.smf"), b"fake").unwrap();
+
+        let result = find_entrypoint_in_directory(dir.path());
+        assert_eq!(result, Some(fhui_path));
+    }
+
+    #[test]
     fn test_load_zip_game_with_fhui() {
         let dir = tempfile::tempdir().unwrap();
         let zip_path = dir.path().join("game.zip");
@@ -215,11 +251,11 @@ mod tests {
     }
 
     #[test]
-    fn test_load_zip_game_no_fhui() {
+    fn test_load_zip_game_no_entrypoint() {
         let dir = tempfile::tempdir().unwrap();
         let zip_path = dir.path().join("game.zip");
 
-        // Create a ZIP without FHUI.smf
+        // Create a ZIP without a supported entry point
         let file = fs::File::create(&zip_path).unwrap();
         let mut zip = zip::ZipWriter::new(file);
         let options = zip::write::SimpleFileOptions::default()
@@ -231,6 +267,27 @@ mod tests {
 
         let result = load_zip_game(&zip_path);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_load_zip_game_with_na32ui() {
+        let dir = tempfile::tempdir().unwrap();
+        let zip_path = dir.path().join("game.zip");
+
+        let file = fs::File::create(&zip_path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored);
+
+        zip.start_file("NA32UI.smf", options).unwrap();
+        zip.write_all(b"fake smf content").unwrap();
+        zip.finish().unwrap();
+
+        let (_temp_dir, entrypoint) = load_zip_game(&zip_path).unwrap();
+        assert_eq!(
+            entrypoint.file_name().and_then(|name| name.to_str()),
+            Some("NA32UI.smf")
+        );
     }
 
     #[test]

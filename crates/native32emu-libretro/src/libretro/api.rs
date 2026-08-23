@@ -106,8 +106,8 @@ pub extern "C" fn retro_get_system_info(info: *mut retro_system_info) {
             valid_extensions: c"smf|sgm|ssl|zip".as_ptr(),
             need_fullpath: true,
             // A .zip is a complete Native32 game package; the core extracts it
-            // itself and boots FHUI.smf, so RetroArch must hand over the whole
-            // archive rather than auto-extracting and passing an inner file.
+            // itself and boots its menu entry point, so RetroArch must hand over
+            // the whole archive rather than auto-extracting an inner file.
             block_extract: true,
         };
     }
