@@ -18,6 +18,7 @@ serde_json.workspace = true
 crc32fast.workspace = true
 image.workspace = true
 symphonia.workspace = true
+flate2.workspace = true
 zip = "8.6"  # ZIP archive extraction for game packages
 tempfile = "3"  # Temporary directory management for ZIP extraction
 

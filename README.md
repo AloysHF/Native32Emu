@@ -21,7 +21,7 @@ Native32 is a game format developed by Sunplus for DVD player and TV chipsets (c
 ## Features
 
 - **Full Native32 format support** — file loading, header decryption, resource table parsing
-- **YUV & ARGB image decoding** — with packbits/RLE decompression and color space conversion
+- **YUV & ARGB image decoding** — with packed-resource DEFLATE support, packbits/RLE decompression, and color space conversion
 - **Action bytecode VM** — 36 opcodes covering arithmetic, logic, string ops, control flow, sprites, and I/O
 - **Sprite/movie system** — animation, cloning, visibility control, depth-sorted rendering
 - **Audio playback** — finite/infinite-loop MP3 music mixed with raw 16-bit PCM sound effects (11025Hz for YUV games, 22050Hz for ARGB games), output as stereo with mono sources duplicated across both channels

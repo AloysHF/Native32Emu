@@ -1,10 +1,12 @@
 // File loader: reads game files, skips thumbnails, locates headers, parses resource tables.
 
 use std::collections::HashMap;
+use std::io::Read;
 
 use crate::error::{EmuError, Result};
 use crate::header_decryptor::decrypt_header;
 use crate::image_decoder::{decode_image_argb, decode_image_yuv, RgbaImage};
+use flate2::read::DeflateDecoder;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObjectType {
@@ -209,6 +211,8 @@ impl Native32Reader {
         // 8 bytes: fps_color_size(2) + action_stack_var(2) + button_movieclip(2) + buffer_sound(2)
         // 16 bytes: load_addr(4) + binary_size(4) + mp3_offset(4) + mp3_length(4)
         // Total: 24 = 0x18 bytes
+        let packed_block_count = (read_u16_le(&self.data, self.base) & 0x00FF) as usize;
+        let binary_size = read_u32_le(&self.data, self.base + 0x0c) as usize;
         self.mp3_offset = read_u32_le(&self.data, self.base + 0x10);
 
         // Decrypt the 32-byte encrypted header at base + 0x18
@@ -230,6 +234,8 @@ impl Native32Reader {
         self.button_idx = read_u32_le(&decrypted, 0x18);
         self.button_cond_idx = read_u32_le(&decrypted, 0x1c);
 
+        self.expand_packed_assets(packed_block_count, binary_size)?;
+
         log::info!("Frame table: 0x{:08x}", self.frame_idx);
         log::info!("Image table: 0x{:08x}", self.image_idx);
         log::info!("Action table: 0x{:08x}", self.action_idx);
@@ -247,6 +253,108 @@ impl Native32Reader {
             log::info!("Sound table at 0x{:x}", self.sound_table);
         }
 
+        Ok(())
+    }
+
+    fn expand_packed_assets(&mut self, block_count: usize, binary_size: usize) -> Result<()> {
+        if block_count == 0 {
+            return Ok(());
+        }
+
+        let image_table = self
+            .base
+            .checked_add(self.image_idx as usize)
+            .ok_or_else(|| EmuError::InvalidFile("Image table offset overflow".into()))?;
+        let first_image_ptr = self
+            .data
+            .get(image_table..image_table + 4)
+            .ok_or_else(|| EmuError::InvalidFile("Packed image table is truncated".into()))?;
+        let first_image_offset = u32::from_le_bytes(first_image_ptr.try_into().unwrap()) as usize;
+        if first_image_offset == u32::MAX as usize {
+            return Err(EmuError::InvalidFile(
+                "Packed asset stream has no first image".into(),
+            ));
+        }
+
+        let asset_start = self
+            .base
+            .checked_add(first_image_offset)
+            .ok_or_else(|| EmuError::InvalidFile("Packed asset offset overflow".into()))?;
+        let max_expanded_size = binary_size.checked_sub(first_image_offset).ok_or_else(|| {
+            EmuError::InvalidFile("Packed asset offset exceeds binary size".into())
+        })?;
+        let packed_offset = first_image_offset
+            .checked_add(0x7FF)
+            .ok_or_else(|| EmuError::InvalidFile("Packed asset alignment overflow".into()))?
+            & !0x7FF;
+        let mut block_start = self
+            .base
+            .checked_add(packed_offset)
+            .ok_or_else(|| EmuError::InvalidFile("Packed block offset overflow".into()))?;
+        let mut expanded = Vec::new();
+
+        for block_index in 0..block_count {
+            let size_bytes = self.data.get(block_start..block_start + 4).ok_or_else(|| {
+                EmuError::InvalidFile(format!(
+                    "Packed asset block {} header is truncated",
+                    block_index + 1
+                ))
+            })?;
+            let block_size = u32::from_le_bytes(size_bytes.try_into().unwrap()) as usize;
+            if block_size <= 4 {
+                return Err(EmuError::InvalidFile(format!(
+                    "Packed asset block {} has invalid size {block_size}",
+                    block_index + 1
+                )));
+            }
+            let block_end = block_start.checked_add(block_size).ok_or_else(|| {
+                EmuError::InvalidFile(format!(
+                    "Packed asset block {} size overflow",
+                    block_index + 1
+                ))
+            })?;
+            let compressed = self.data.get(block_start + 4..block_end).ok_or_else(|| {
+                EmuError::InvalidFile(format!(
+                    "Packed asset block {} extends beyond the file",
+                    block_index + 1
+                ))
+            })?;
+            let remaining_capacity = max_expanded_size.saturating_sub(expanded.len());
+            DeflateDecoder::new(compressed)
+                .take(remaining_capacity.saturating_add(1) as u64)
+                .read_to_end(&mut expanded)
+                .map_err(|error| {
+                    EmuError::InvalidFile(format!(
+                        "Failed to decompress packed asset block {}: {error}",
+                        block_index + 1
+                    ))
+                })?;
+            if expanded.len() > max_expanded_size {
+                return Err(EmuError::InvalidFile(
+                    "Packed assets exceed the declared binary size".into(),
+                ));
+            }
+            block_start = block_end;
+        }
+
+        if block_start != self.data.len() {
+            return Err(EmuError::InvalidFile(format!(
+                "Packed asset blocks end at 0x{block_start:x}, file ends at 0x{:x}",
+                self.data.len()
+            )));
+        }
+        if asset_start > self.data.len() {
+            return Err(EmuError::InvalidFile(
+                "Packed asset destination extends beyond the file".into(),
+            ));
+        }
+
+        let expanded_size = expanded.len();
+        self.data.truncate(asset_start);
+        self.data.extend_from_slice(&expanded);
+        log::info!(
+            "Expanded {block_count} packed asset block(s) to {expanded_size} bytes at 0x{asset_start:x}"
+        );
         Ok(())
     }
 
@@ -593,6 +701,9 @@ fn endian_swap_pcm16(data: &[u8]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use flate2::write::DeflateEncoder;
+    use flate2::Compression;
+    use std::io::Write;
 
     // === parse_resolution tests ===
 
@@ -714,6 +825,43 @@ mod tests {
         assert_eq!(reader.resolution, (320, 240));
         assert_eq!(reader.idx, 0);
         assert_eq!(reader.base, 0);
+    }
+
+    #[test]
+    fn test_expand_multiple_packed_asset_blocks() {
+        let base = 0x20;
+        let image_idx = 0x40;
+        let first_image_offset = 0x83;
+        let packed_start = base + 0x800;
+        let chunks = [
+            b"first asset block".as_slice(),
+            b"second asset block".as_slice(),
+        ];
+        let mut data = vec![0u8; packed_start];
+        data[base + image_idx..base + image_idx + 4]
+            .copy_from_slice(&(first_image_offset as u32).to_le_bytes());
+
+        for chunk in chunks {
+            let mut encoder = DeflateEncoder::new(Vec::new(), Compression::default());
+            encoder.write_all(chunk).unwrap();
+            let compressed = encoder.finish().unwrap();
+            let block_size = (compressed.len() + 4) as u32;
+            data.extend_from_slice(&block_size.to_le_bytes());
+            data.extend_from_slice(&compressed);
+        }
+
+        let mut reader = Native32Reader::new(data);
+        reader.base = base;
+        reader.image_idx = image_idx as u32;
+        reader
+            .expand_packed_assets(2, first_image_offset + 36)
+            .unwrap();
+
+        let asset_start = base + first_image_offset;
+        assert_eq!(
+            &reader.data[asset_start..],
+            b"first asset blocksecond asset block"
+        );
     }
 
     #[test]
