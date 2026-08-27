@@ -276,15 +276,18 @@ pub fn decode_image_argb(data: &[u8]) -> Option<RgbaImage> {
     })
 }
 
-/// Convert ARGB1555 pixel to ARGB8888.
+/// Convert an A1R5G5B5 (ARGB1555) pixel to ARGB8888.
+///
+/// The 16-bit value packs, from most to least significant:
+/// alpha (bit 15), red (bits 14-10), green (bits 9-5), blue (bits 4-0).
 fn argb1555_to_argb(value: u16) -> u32 {
     if value & 0x8000 == 0 {
         // Transparent
         0x00000000
     } else {
-        let r = (value & 0x1F) << 3;
+        let r = ((value >> 10) & 0x1F) << 3;
         let g = ((value >> 5) & 0x1F) << 3;
-        let b = ((value >> 10) & 0x1F) << 3;
+        let b = (value & 0x1F) << 3;
         0xFF000000 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
     }
 }
@@ -332,9 +335,9 @@ mod tests {
 
     #[test]
     fn test_argb1555_red() {
-        // bit 15 = 1, R=31, G=0, B=0
-        // value = 0x8000 | 31 = 0x801F
-        let result = argb1555_to_argb(0x801F);
+        // bit 15 = 1, R=31 (bits 14-10), G=0, B=0
+        // value = 0x8000 | (31 << 10) = 0xFC00
+        let result = argb1555_to_argb(0xFC00);
         assert_eq!(result & 0xFF000000, 0xFF000000); // alpha = 0xFF
         assert_eq!((result >> 16) & 0xFF, 0xF8); // R = 31 << 3 = 248
         assert_eq!((result >> 8) & 0xFF, 0x00); // G = 0
@@ -353,12 +356,27 @@ mod tests {
 
     #[test]
     fn test_argb1555_blue() {
-        // bit 15 = 1, R=0, G=0, B=31
-        // value = 0x8000 | (31 << 10) = 0x8000 | 0x7C00 = 0xFC00
-        let result = argb1555_to_argb(0xFC00);
+        // bit 15 = 1, R=0, G=0, B=31 (bits 4-0)
+        // value = 0x8000 | 31 = 0x801F
+        let result = argb1555_to_argb(0x801F);
         assert_eq!((result >> 16) & 0xFF, 0x00); // R = 0
         assert_eq!((result >> 8) & 0xFF, 0x00); // G = 0
         assert_eq!(result & 0xFF, 0xF8); // B = 31 << 3 = 248
+    }
+
+    #[test]
+    fn test_argb1555_exact_channel_layout() {
+        // Pin the exact A1R5G5B5 bit layout so a future R/B mix-up is caught.
+        assert_eq!(argb1555_to_argb(0xFC00), 0xFFF80000); // pure red
+        assert_eq!(argb1555_to_argb(0x83E0), 0xFF00F800); // pure green
+        assert_eq!(argb1555_to_argb(0x801F), 0xFF0000F8); // pure blue
+    }
+
+    #[test]
+    fn test_argb1555_mixed_pixel() {
+        // Mixed pixel: R=10, G=20, B=30.
+        let value = 0x8000 | (10 << 10) | (20 << 5) | 30;
+        assert_eq!(argb1555_to_argb(value), 0xFF50A0F0);
     }
 
     // === RgbaImage tests ===
@@ -522,6 +540,23 @@ mod tests {
         for pixel in &img.pixels {
             assert_eq!(*pixel, 0xFFF8F8F8); // white: 5-bit 31<<3=248 per channel
         }
+    }
+
+    #[test]
+    fn test_decode_argb_red_pixel_layout() {
+        // Regression test: a 1x1 image holding an A1R5G5B5 red pixel must
+        // decode to red, not blue (the channels used to be swapped).
+        let mut data = vec![0u8; 32];
+        data[0..2].copy_from_slice(&1u16.to_le_bytes()); // width=1
+        data[2..4].copy_from_slice(&1u16.to_le_bytes()); // height=1
+        data[4..8].copy_from_slice(&4u32.to_le_bytes()); // img_size=4
+
+        // Command: 0xC000 | 1 = repeat 1 time
+        data[8..10].copy_from_slice(&(0xC000u16 | 1).to_le_bytes());
+        data[10..12].copy_from_slice(&0xFC00u16.to_le_bytes()); // red
+
+        let img = decode_image_argb(&data).expect("decode");
+        assert_eq!(img.pixels[0], 0xFFF80000);
     }
 
     #[test]
