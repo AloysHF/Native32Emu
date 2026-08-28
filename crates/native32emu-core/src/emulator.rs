@@ -3,7 +3,7 @@
 use crate::action_vm::{ActionProp, ActionVM, VmHost};
 use crate::audio_engine::AudioEngine;
 use crate::cheats::CheatManager;
-use crate::content_loader::ContentLoader;
+use crate::content_loader::{ContentLoadKind, ContentLoader};
 use crate::file_loader::{FrameObject, Native32Reader, ObjectType};
 use crate::frame_player::FramePlayer;
 use crate::input_handler::InputHandler;
@@ -20,6 +20,12 @@ fn timeline_sound_value(index: u16, loop_count: i16) -> u16 {
         loop_count.clamp(0, 0xFE) as u16
     };
     (repeat << 8) | (index & 0xFF)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ReturnFrame {
+    path: PathBuf,
+    menu_context: Option<String>,
 }
 
 /// The platform-independent emulator core.
@@ -56,10 +62,8 @@ pub struct Emulator {
     /// Active cutscene player, if a video is currently playing.
     pub video_player: Option<crate::mpeg::VideoPlayer>,
     active_video_name: Option<String>,
-    /// The initial menu file loaded at startup from a ZIP package.
-    /// Set to None when the user loaded a game directly (not from a menu).
-    /// Used to support the frontends' shared back action.
-    pub initial_file: Option<PathBuf>,
+    /// Parent SMF applications that can be restored by the shared back action.
+    return_stack: Vec<ReturnFrame>,
     /// When true, cutscene videos are skipped automatically as soon as they
     /// become active, instead of waiting for the user to press A/B.
     pub auto_skip_cutscenes: bool,
@@ -94,14 +98,6 @@ impl Emulator {
 
         let save_manager = SaveManager::new(&game_path);
 
-        // When loaded from a ZIP, remember the menu path so the frontend's
-        // back action can return to the menu instead of exiting.
-        let initial_file = if is_zip {
-            Some(game_path.clone())
-        } else {
-            None
-        };
-
         let content_root = game_path
             .parent()
             .unwrap_or_else(|| Path::new(""))
@@ -128,7 +124,7 @@ impl Emulator {
             pending_videos: Vec::new(),
             video_player: None,
             active_video_name: None,
-            initial_file,
+            return_stack: Vec::new(),
             auto_skip_cutscenes: false,
             _temp_dir,
         })
@@ -147,37 +143,38 @@ impl Emulator {
         }
     }
 
-    /// Whether the emulator can return to its initial ZIP menu.
-    /// Returns true only when an initial menu file was set (ZIP mode) and the
-    /// current file is different (i.e. we are in a game, not already on the menu).
-    pub fn can_return_to_menu(&self) -> bool {
-        self.initial_file
-            .as_ref()
-            .is_some_and(|p| *p != self.filename)
+    /// Whether the emulator can return to a parent SMF application.
+    pub fn can_return_to_parent(&self) -> bool {
+        !self.return_stack.is_empty()
     }
 
-    /// Return to the initial ZIP menu when one is available.
+    /// Return to the SMF application that launched the current child.
     ///
-    /// Returns `true` after reloading the menu and `false` when the frontend
+    /// Returns `true` after reloading the parent and `false` when the frontend
     /// should handle the back action by ending the current emulation session.
-    pub fn try_return_to_menu(&mut self) -> Result<bool> {
-        if !self.can_return_to_menu() {
+    pub fn try_return_to_parent(&mut self) -> Result<bool> {
+        let Some(frame) = self.return_stack.last().cloned() else {
             return Ok(false);
-        }
+        };
 
-        let menu_path = self
-            .initial_file
-            .clone()
-            .expect("a returnable menu must have an initial file");
-        self.reload_from_path(menu_path)?;
+        self.load_path(frame.path, frame.menu_context)?;
+        self.return_stack.pop();
         Ok(true)
     }
 
     /// Reload the emulator from the given file path, performing a full state
-    /// reset. Preserves `initial_file` so the user can return to the menu again.
+    /// reset and starting a new navigation session.
     pub fn reload_from_path(&mut self, path: PathBuf) -> Result<()> {
+        self.load_path(path, None)?;
+        self.return_stack.clear();
+        Ok(())
+    }
+
+    fn load_path(&mut self, path: PathBuf, menu_context: Option<String>) -> Result<()> {
         let data = std::fs::read(&path)
             .with_context(|| format!("Failed to read game file: {}", path.display()))?;
+        let mut reader = Native32Reader::new(data);
+        reader.init()?;
 
         self.audio.stop_all();
         self.renderer.clear_sprite_overrides();
@@ -191,10 +188,9 @@ impl Emulator {
         self.vm = ActionVM::new();
         self.content_loader = ContentLoader::new();
         self.cur_frame_objects.clear();
-        self.menu_context = None;
+        self.menu_context = menu_context;
         self.filename = path;
-        self.reader = Native32Reader::new(data);
-        self.reader.init()?;
+        self.reader = reader;
         self.audio = AudioEngine::new(self.reader.colorspace, (self.audio.volume * 100.0) as u32);
         self.save_manager = SaveManager::new(&self.filename);
 
@@ -367,10 +363,10 @@ impl Emulator {
 
         self.handle_buttons();
 
-        // Handle content switching (SSL_PlayNext)
+        // Handle queued content switching.
         if self.content_loader.has_pending() && !self.is_cutscene_active() {
-            if let Some(filename) = self.content_loader.take_pending() {
-                if let Err(e) = self.switch_content(&filename) {
+            if let Some((filename, kind)) = self.content_loader.take_pending() {
+                if let Err(e) = self.switch_content(&filename, kind) {
                     log::error!("Failed to switch content: {}", e);
                 }
             }
@@ -598,12 +594,35 @@ impl Emulator {
         }
     }
 
-    /// Switch to a new content file (for SSL_PlayNext).
-    fn switch_content(&mut self, filename: &str) -> anyhow::Result<()> {
+    /// Switch to a new content file.
+    fn switch_content(&mut self, filename: &str, kind: ContentLoadKind) -> anyhow::Result<()> {
         let fullpath = ContentLoader::find_content_file(&self.filename, filename)
             .ok_or_else(|| anyhow::anyhow!("Content file not found: {}", filename))?;
 
         log::info!("Loading content: {}", fullpath.display());
+
+        // Validate the new content before changing the running application.
+        let data = std::fs::read(&fullpath)
+            .map_err(|e| anyhow::anyhow!("Failed to read {}: {}", fullpath.display(), e))?;
+        let mut reader = Native32Reader::new(data);
+        reader.init()?;
+
+        let new_content_root = if fullpath.starts_with(&self.content_root) {
+            self.content_root.clone()
+        } else {
+            self.content_root
+                .ancestors()
+                .find(|ancestor| fullpath.starts_with(ancestor))
+                .context("switched content has no common root with the initial content")?
+                .to_path_buf()
+        };
+        let replace_save_manager =
+            !has_extension(&self.filename, "ssl") || !has_extension(&fullpath, "ssl");
+        let return_frame =
+            should_push_return_frame(kind, &self.filename, &fullpath).then(|| ReturnFrame {
+                path: self.filename.clone(),
+                menu_context: self.menu_context.clone(),
+            });
 
         // Stop all sounds
         self.audio.stop_all();
@@ -619,29 +638,17 @@ impl Emulator {
         self.vm = ActionVM::new();
         self.content_loader = ContentLoader::new();
 
-        // Load new file
-        let data = std::fs::read(&fullpath)
-            .map_err(|e| anyhow::anyhow!("Failed to read {}: {}", fullpath.display(), e))?;
-        let is_ssl = |path: &Path| {
-            path.extension()
-                .and_then(|extension| extension.to_str())
-                .is_some_and(|extension| extension.eq_ignore_ascii_case("ssl"))
-        };
         // Consecutive SSL scenes belong to one game and share its save data.
-        if !is_ssl(&self.filename) || !is_ssl(&fullpath) {
+        if replace_save_manager {
             self.save_manager = SaveManager::new(&fullpath);
         }
-        if !fullpath.starts_with(&self.content_root) {
-            self.content_root = self
-                .content_root
-                .ancestors()
-                .find(|ancestor| fullpath.starts_with(ancestor))
-                .context("switched content has no common root with the initial content")?
-                .to_path_buf();
+        self.content_root = new_content_root;
+        if let Some(frame) = return_frame {
+            self.return_stack.push(frame);
+            self.menu_context = None;
         }
         self.filename = fullpath;
-        self.reader = Native32Reader::new(data);
-        self.reader.init()?;
+        self.reader = reader;
         self.audio = AudioEngine::new(self.reader.colorspace, (self.audio.volume * 100.0) as u32);
         self.cur_frame_objects.clear();
 
@@ -678,22 +685,24 @@ impl Emulator {
 
     /// Serialize the emulator state to a buffer.
     pub fn serialize(&self, buffer: &mut [u8]) -> Result<()> {
-        use crate::save_state::{EmulatorState, VideoState};
+        use crate::save_state::{EmulatorState, ReturnFrameState, VideoState};
 
-        let relative = self
-            .filename
-            .strip_prefix(&self.content_root)
-            .context("current content is outside the save-state content root")?;
-        if relative
-            .components()
-            .any(|component| !matches!(component, Component::Normal(_)))
-        {
-            anyhow::bail!("current content path cannot be represented safely");
-        }
-        let content_path = relative
-            .to_str()
-            .context("current content path is not valid UTF-8")?
-            .replace('\\', "/");
+        let content_path =
+            portable_content_path(&self.filename, &self.content_root, "current content")?;
+        let return_stack = self
+            .return_stack
+            .iter()
+            .map(|frame| {
+                Ok(ReturnFrameState {
+                    content_path: portable_content_path(
+                        &frame.path,
+                        &self.content_root,
+                        "return target",
+                    )?,
+                    menu_context: frame.menu_context.clone(),
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
 
         let state = EmulatorState {
             content_path,
@@ -706,6 +715,7 @@ impl Emulator {
             renderer: self.renderer.save_state(),
             content_loader: self.content_loader.clone(),
             menu_context: self.menu_context.clone(),
+            return_stack: Some(return_stack),
             tick_count: self.tick_count,
             time_ms: self.time_ms,
             pending_videos: self.pending_videos.clone(),
@@ -724,16 +734,42 @@ impl Emulator {
     /// Deserialize the emulator state from a buffer.
     pub fn deserialize(&mut self, buffer: &[u8]) -> Result<()> {
         let state = crate::save_state::decode(buffer)?;
-        let relative = Path::new(&state.content_path);
-        if relative.as_os_str().is_empty()
-            || relative
-                .components()
-                .any(|component| !matches!(component, Component::Normal(_)))
-        {
-            anyhow::bail!("save state contains an unsafe content path");
-        }
-
-        let content_path = self.content_root.join(relative);
+        let content_path =
+            resolve_state_content_path(&self.content_root, &state.content_path, "current content")?;
+        let (return_stack, menu_context) = if let Some(saved_stack) = &state.return_stack {
+            let stack = saved_stack
+                .iter()
+                .map(|frame| {
+                    let path = resolve_state_content_path(
+                        &self.content_root,
+                        &frame.content_path,
+                        "return target",
+                    )?;
+                    if !has_extension(&path, "smf") {
+                        anyhow::bail!("save-state return target is not an SMF file");
+                    }
+                    Ok(ReturnFrame {
+                        path,
+                        menu_context: frame.menu_context.clone(),
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?;
+            (stack, state.menu_context.clone())
+        } else if !self.return_stack.is_empty() {
+            // Loading an old state during an active session keeps its known parents.
+            (self.return_stack.clone(), state.menu_context.clone())
+        } else if self._temp_dir.is_some() && self.filename != content_path {
+            // Old ZIP save states relied on the package entry point implicitly.
+            (
+                vec![ReturnFrame {
+                    path: self.filename.clone(),
+                    menu_context: state.menu_context.clone(),
+                }],
+                None,
+            )
+        } else {
+            (Vec::new(), state.menu_context.clone())
+        };
         let data = std::fs::read(&content_path).with_context(|| {
             format!(
                 "failed to read save-state content: {}",
@@ -765,7 +801,8 @@ impl Emulator {
         self.vm.vars = state.vm_vars;
         self.vm.rng_state = state.rng_state;
         self.content_loader = state.content_loader;
-        self.menu_context = state.menu_context;
+        self.menu_context = menu_context;
+        self.return_stack = return_stack;
         self.tick_count = state.tick_count;
         self.time_ms = state.time_ms;
         self.pending_videos = state.pending_videos;
@@ -989,7 +1026,7 @@ impl VmHost for Emulator {
                 // `url` is a root-relative game path without extension
                 // (e.g. "/EACT    /EBBLADE"); load the matching .smf game.
                 log::info!("StartGame({})", url);
-                self.content_loader.queue_load(&format!("{}.smf", url));
+                self.content_loader.queue_child(&format!("{}.smf", url));
             }
             "LoadImage" => {
                 // url = "<spriteName>+D+<picPath>" : load the thumbnail stored
@@ -1140,6 +1177,35 @@ fn fhui_str_sub(parts: &[&str]) -> String {
         .unwrap_or_default()
 }
 
+fn portable_content_path(path: &Path, root: &Path, label: &str) -> Result<String> {
+    let relative = path
+        .strip_prefix(root)
+        .with_context(|| format!("{label} is outside the save-state content root"))?;
+    if relative.as_os_str().is_empty()
+        || relative
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        anyhow::bail!("{label} path cannot be represented safely");
+    }
+    Ok(relative
+        .to_str()
+        .with_context(|| format!("{label} path is not valid UTF-8"))?
+        .replace('\\', "/"))
+}
+
+fn resolve_state_content_path(root: &Path, value: &str, label: &str) -> Result<PathBuf> {
+    let relative = Path::new(value);
+    if relative.as_os_str().is_empty()
+        || relative
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        anyhow::bail!("save state contains an unsafe {label} path");
+    }
+    Ok(root.join(relative))
+}
+
 /// Normalize a Native32 content path: split on '/', trim each component
 /// (games pad directory names with trailing spaces), drop empties, rejoin.
 fn normalize_content_path(filename: &str) -> String {
@@ -1149,6 +1215,19 @@ fn normalize_content_path(filename: &str) -> String {
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
         .join("/")
+}
+
+fn has_extension(path: &Path, expected: &str) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case(expected))
+}
+
+fn should_push_return_frame(kind: ContentLoadKind, current: &Path, target: &Path) -> bool {
+    kind == ContentLoadKind::LaunchChild
+        && current != target
+        && has_extension(current, "smf")
+        && has_extension(target, "smf")
 }
 
 /// Check if a file is a ZIP archive by reading its magic bytes.
@@ -1171,4 +1250,37 @@ fn is_zip_file(path: &PathBuf) -> bool {
     }
 
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn child_smf_launch_creates_return_frame() {
+        assert!(should_push_return_frame(
+            ContentLoadKind::LaunchChild,
+            Path::new("menu.SMF"),
+            Path::new("games/child.smf")
+        ));
+    }
+
+    #[test]
+    fn replacement_and_ssl_transitions_do_not_create_return_frames() {
+        assert!(!should_push_return_frame(
+            ContentLoadKind::Replace,
+            Path::new("menu.smf"),
+            Path::new("child.smf")
+        ));
+        assert!(!should_push_return_frame(
+            ContentLoadKind::LaunchChild,
+            Path::new("menu.smf"),
+            Path::new("scene.ssl")
+        ));
+        assert!(!should_push_return_frame(
+            ContentLoadKind::LaunchChild,
+            Path::new("menu.smf"),
+            Path::new("menu.smf")
+        ));
+    }
 }

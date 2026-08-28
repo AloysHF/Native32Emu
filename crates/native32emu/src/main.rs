@@ -190,23 +190,23 @@ fn main() -> Result<()> {
     // Main emulation loop
     let mut frame_count: u32 = 0;
     let screenshot_path = cli.screenshot.clone();
-    // Debounce counter: after returning to menu via ESC, suppress further ESC
+    // Debounce counter: after returning to a parent via ESC, suppress further ESC
     // detections for a few frames so the key release is not re-triggered.
     let mut esc_cooldown: u32 = 0;
 
     while window.is_open() {
-        // Handle ESC key: return to menu (ZIP mode) or exit.
+        // Handle ESC key: return to a parent SMF or exit.
         if esc_cooldown > 0 {
             esc_cooldown -= 1;
         } else if window.is_key_down(minifb::Key::Escape) {
-            match emu.try_return_to_menu() {
+            match emu.try_return_to_parent() {
                 Ok(true) => {
                     esc_cooldown = 15; // ~0.5s at 30fps, enough for key release
                     continue;
                 }
                 Ok(false) => break,
                 Err(e) => {
-                    log::error!("Failed to reload menu: {}", e);
+                    log::error!("Failed to reload parent SMF: {}", e);
                     break;
                 }
             }
