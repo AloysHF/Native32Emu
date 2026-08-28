@@ -102,7 +102,7 @@ pub extern "C" fn retro_get_system_info(info: *mut retro_system_info) {
     unsafe {
         (*info) = retro_system_info {
             library_name: c"Native32Emu".as_ptr(),
-            library_version: c"1.2.0".as_ptr(),
+            library_version: c"1.3.0".as_ptr(),
             valid_extensions: c"smf|sgm|ssl|zip".as_ptr(),
             need_fullpath: true,
             // A .zip is a complete Native32 game package; the core extracts it

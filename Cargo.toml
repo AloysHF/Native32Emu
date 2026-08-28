@@ -12,7 +12,7 @@ members = [
 default-members = ["crates/native32emu-libretro"]
 
 [workspace.package]
-version = "1.2.0"
+version = "1.3.0"
 edition = "2021"
 description = "A Native32 game emulator written in Rust"
 license = "BSD-3-Clause"
