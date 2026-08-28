@@ -233,15 +233,15 @@ pub extern "C" fn retro_run() {
 
         // 2. Handle the frontend-level back action on the Select press edge.
         if return_button_just_pressed(0) {
-            match emu.try_return_to_menu() {
-                Ok(true) => log::info!("Returned to the ZIP game menu"),
+            match emu.try_return_to_parent() {
+                Ok(true) => log::info!("Returned to the parent SMF"),
                 Ok(false) => {
                     log::info!("Requesting frontend shutdown");
                     callbacks::environment(RETRO_ENVIRONMENT_SHUTDOWN, ptr::null_mut());
                     return;
                 }
                 Err(e) => {
-                    log::error!("Failed to reload the ZIP game menu: {}", e);
+                    log::error!("Failed to reload the parent SMF: {}", e);
                     callbacks::environment(RETRO_ENVIRONMENT_SHUTDOWN, ptr::null_mut());
                     return;
                 }

@@ -54,15 +54,21 @@ platform-specific installation requirements:
 | D-Pad Down | `0x1e00` | Down |
 | A (SNES East) | `0x8800` | B / Menu |
 | B (SNES South) | `0x4000` | A |
-| Select (Right Shift) | — | Return to the ZIP menu / exit |
+| Select (Right Shift) | — | Return to the parent SMF / exit |
 
 ### Return and Exit Behavior
 
-RetroPad **Select** is the core's back action. When a `.zip` package has
-launched one of its games, pressing Select returns to the package's initial
-`FHUI.smf` or `NA32UI.smf` menu. Pressing Select from that menu, or while
-running a directly loaded `.smf`, `.sgm`, or `.ssl` file, asks the frontend to
-close the core.
+RetroPad **Select** is the core's back action. When one `.smf` application
+launches another through `StartGame`, pressing Select reloads the parent SMF as
+a fresh session. Nested SMF launches can be unwound one level at a time.
+Internal `.ssl` scene transitions do not create extra return levels, so Select
+from any scene in the launched game still returns to its SMF launcher.
+
+This behavior is based on the content launch relationship rather than the
+container type or a menu filename. It works for menus loaded directly as well
+as the `FHUI.smf` or `NA32UI.smf` menu selected when opening a ZIP package. If
+the current session has no parent SMF, Select asks the frontend to close the
+core.
 
 Select is handled on the initial press only and is not sent to Native32 game
 input. If Select is also configured as a RetroArch hotkey, remap either the

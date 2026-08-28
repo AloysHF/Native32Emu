@@ -340,6 +340,7 @@ fn nav_select_na32_loads_native32_menu() {
         final_name.eq_ignore_ascii_case("NA32UI.smf"),
         "Native32 selection loaded {final_name} instead of NA32UI.smf"
     );
+    assert!(!emu.can_return_to_parent());
 }
 
 #[test]
@@ -505,7 +506,7 @@ fn fhui_menu_starts_selected_game() {
 
     // Tap confirm to enter the category, then confirm again to launch the
     // first game.
-    let emu = run_scripted(&menu, 260, |frame| {
+    let mut emu = run_scripted(&menu, 260, |frame| {
         if (50..53).contains(&frame) || (110..113).contains(&frame) {
             vec![KEY_Z]
         } else {
@@ -524,6 +525,11 @@ fn fhui_menu_starts_selected_game() {
         !name.eq_ignore_ascii_case("FHUI.smf"),
         "selecting a game did not launch it: still on the menu"
     );
+    assert!(emu.can_return_to_parent());
+    assert!(emu
+        .try_return_to_parent()
+        .expect("return to FHUI after selected game"));
+    assert_eq!(emu.filename, menu);
 }
 
 /// Regression test for Magical Adventure's first mini-game flow: a confirm
@@ -796,8 +802,8 @@ fn zip_file_loads_fhui() {
     );
 }
 
-/// A ZIP with NA32UI.smf as its only menu entry point should boot it and use it
-/// as the back-action target.
+/// A ZIP with NA32UI.smf as its only menu entry point should boot it and allow
+/// a child launch to return to it.
 #[test]
 #[ignore = "requires local Native32 game assets (set NATIVE32_GAME_DIR)"]
 fn zip_file_loads_na32ui() {
@@ -840,20 +846,17 @@ fn zip_file_loads_na32ui() {
         .and_then(|name| name.to_str())
         .is_some_and(|name| name.eq_ignore_ascii_case("NA32UI.smf")));
 
-    let child_path = menu_path
-        .parent()
-        .expect("menu path has no parent")
-        .join("GAME.smf");
-    emu.reload_from_path(child_path)
-        .expect("load extracted child game");
-    assert!(emu.try_return_to_menu().expect("return to NA32UI menu"));
+    emu.content_loader.queue_child("GAME.smf");
+    emu.tick();
+    assert!(emu.can_return_to_parent());
+    assert!(emu.try_return_to_parent().expect("return to NA32UI menu"));
     assert_eq!(emu.filename, menu_path);
 }
 
-/// The shared back action should return a ZIP-loaded child game to its menu.
+/// The shared back action should return a child SMF to the SMF that launched it.
 #[test]
 #[ignore = "requires local Native32 game assets (set NATIVE32_GAME_DIR)"]
-fn back_action_returns_to_zip_menu() {
+fn back_action_returns_to_parent_smf() {
     let dir = match game_dir() {
         Some(d) => d,
         None => {
@@ -880,16 +883,156 @@ fn back_action_returns_to_zip_menu() {
     );
     let child_game = games
         .into_iter()
-        .find(|path| *path != menu_path)
-        .expect("ZIP package contains no child game");
+        .find(|path| {
+            *path != menu_path
+                && path
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("smf"))
+        })
+        .expect("ZIP package contains no child SMF");
+    let child_name = child_game
+        .strip_prefix(menu_path.parent().expect("menu path has no parent"))
+        .expect("child SMF is outside the package root")
+        .to_string_lossy()
+        .replace('\\', "/");
 
-    emu.reload_from_path(child_game)
-        .expect("failed to load child game");
-    assert!(emu.try_return_to_menu().expect("back action failed"));
+    emu.content_loader.queue_child(&child_name);
+    emu.tick();
+    assert_eq!(emu.filename, child_game);
+    assert!(emu.try_return_to_parent().expect("back action failed"));
     assert_eq!(emu.filename, menu_path);
     assert!(!emu
-        .try_return_to_menu()
+        .try_return_to_parent()
         .expect("back action at the menu failed"));
+}
+
+#[test]
+#[ignore = "requires local Native32 game assets (set NATIVE32_GAME_DIR)"]
+fn direct_smf_child_launch_reloads_parent() {
+    let dir = game_dir().expect("no game directory found");
+    let parent = find_asset(&dir, "FHUI.smf").expect("FHUI.smf not found");
+    let mut games = Vec::new();
+    collect_games(&dir, &mut games);
+    let child = games
+        .into_iter()
+        .find(|path| {
+            *path != parent
+                && path
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("smf"))
+        })
+        .expect("no child SMF found");
+    let child_name = child
+        .strip_prefix(parent.parent().expect("parent SMF has no directory"))
+        .expect("child SMF is outside the content root")
+        .to_string_lossy()
+        .replace('\\', "/");
+    let mut emu = Emulator::from_path(parent.clone(), 100).expect("load parent SMF");
+    emu.menu_context = Some("category=2;game=4".to_string());
+
+    emu.content_loader.queue_child(&child_name);
+    emu.tick();
+    assert_eq!(emu.filename, child);
+    assert_eq!(emu.menu_context, None);
+    assert!(emu.try_return_to_parent().expect("return to direct parent"));
+    assert_eq!(emu.filename, parent);
+    assert_eq!(emu.menu_context, None);
+    assert!(!emu
+        .try_return_to_parent()
+        .expect("back action at the direct parent failed"));
+}
+
+#[test]
+#[ignore = "requires local Native32 game assets (set NATIVE32_GAME_DIR)"]
+fn nested_smf_return_stack_survives_save_state() {
+    let dir = game_dir().expect("no game directory found");
+    let root = find_asset(&dir, "FHUI.smf").expect("FHUI.smf not found");
+    let content_root = root.parent().expect("root SMF has no directory");
+    let mut games = Vec::new();
+    collect_games(&dir, &mut games);
+    let children: Vec<PathBuf> = games
+        .into_iter()
+        .filter(|path| {
+            *path != root
+                && path
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("smf"))
+        })
+        .take(2)
+        .collect();
+    assert_eq!(children.len(), 2, "need two child SMFs for nested test");
+    let relative_name = |path: &Path| {
+        path.strip_prefix(content_root)
+            .expect("child SMF is outside the content root")
+            .to_string_lossy()
+            .replace('\\', "/")
+    };
+
+    let mut emu = Emulator::from_path(root.clone(), 100).expect("load root SMF");
+    emu.content_loader.queue_child(&relative_name(&children[0]));
+    emu.tick();
+    emu.frame_player.take_next_frame();
+    emu.frame_player.playing = false;
+    emu.content_loader.queue_child(&relative_name(&children[1]));
+    emu.tick();
+
+    let mut state = vec![0; emu.serialize_size()];
+    emu.serialize(&mut state)
+        .expect("serialize nested return stack");
+    emu.reload_from_path(root.clone())
+        .expect("reset navigation session");
+    assert!(!emu.can_return_to_parent());
+    emu.deserialize(&state)
+        .expect("restore nested return stack");
+
+    assert!(emu.try_return_to_parent().expect("return to child SMF"));
+    assert_eq!(emu.filename, children[0]);
+    assert!(emu.try_return_to_parent().expect("return to root SMF"));
+    assert_eq!(emu.filename, root);
+    assert!(!emu
+        .try_return_to_parent()
+        .expect("back action at root failed"));
+}
+
+#[test]
+#[ignore = "requires packed local Native32 assets (set NATIVE32_PACKED_GAME_DIR)"]
+fn na32ui_return_rebuilds_game_list() {
+    let dir = packed_game_dir().expect("no packed game directory found");
+    let menu = find_asset(&dir, "NA32UI.smf").expect("NA32UI.smf not found");
+    let mut emu = run_scripted(&menu, 260, |frame| {
+        if (50..53).contains(&frame) || (110..113).contains(&frame) {
+            vec![KEY_Z]
+        } else {
+            vec![]
+        }
+    })
+    .expect("run NA32UI menu");
+    assert_ne!(emu.filename, menu, "NA32UI did not launch a child SMF");
+    assert!(emu.try_return_to_parent().expect("return to NA32UI"));
+    assert_eq!(emu.menu_context, None);
+
+    for _ in 0..180 {
+        emu.set_buttons(&[]);
+        emu.tick();
+        emu.draw();
+    }
+    for frame in 0..120 {
+        let buttons = if (10..13).contains(&frame) {
+            vec![KEY_Z]
+        } else {
+            vec![]
+        };
+        emu.set_buttons(&buttons);
+        emu.tick();
+        emu.draw();
+    }
+    assert!(
+        emu.renderer.sprite_override_count() > 0,
+        "NA32UI did not rebuild its game-list images"
+    );
 }
 
 /// A placed Pirate bomb must start at the template's first visible frame.

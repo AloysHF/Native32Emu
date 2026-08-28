@@ -1,10 +1,19 @@
-// Content loader: handles SSL multi-file content loading and switching.
+// Content loader: handles typed content loading and switching.
 
 use std::path::{Path, PathBuf};
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ContentLoadKind {
+    #[default]
+    Replace,
+    LaunchChild,
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ContentLoader {
     pub pending_content: Option<String>,
+    #[serde(default)]
+    pub pending_kind: ContentLoadKind,
 }
 
 impl Default for ContentLoader {
@@ -17,11 +26,21 @@ impl ContentLoader {
     pub fn new() -> Self {
         Self {
             pending_content: None,
+            pending_kind: ContentLoadKind::Replace,
         }
     }
 
     /// Mark content for loading at the end of the current tick.
     pub fn queue_load(&mut self, filename: &str) {
+        self.queue(filename, ContentLoadKind::Replace);
+    }
+
+    /// Mark a child application for loading at the end of the current tick.
+    pub fn queue_child(&mut self, filename: &str) {
+        self.queue(filename, ContentLoadKind::LaunchChild);
+    }
+
+    fn queue(&mut self, filename: &str, kind: ContentLoadKind) {
         // Parse the filename: split by '/', trim each component, remove empty segments.
         // Native32 games often pad directory names with trailing spaces (e.g. "BBLADE  ").
         let parts: Vec<&str> = filename
@@ -34,6 +53,7 @@ impl ContentLoader {
             return;
         }
         self.pending_content = Some(parts.join("/"));
+        self.pending_kind = kind;
     }
 
     /// Check if there's pending content to load.
@@ -42,8 +62,10 @@ impl ContentLoader {
     }
 
     /// Take the pending content filename.
-    pub fn take_pending(&mut self) -> Option<String> {
-        self.pending_content.take()
+    pub fn take_pending(&mut self) -> Option<(String, ContentLoadKind)> {
+        let content = self.pending_content.take()?;
+        let kind = std::mem::take(&mut self.pending_kind);
+        Some((content, kind))
     }
 
     /// Find the content file by searching up the directory tree.
@@ -130,28 +152,40 @@ mod tests {
         let mut loader = ContentLoader::new();
         loader.queue_load("level1.ssl");
         assert!(loader.has_pending());
-        assert_eq!(loader.take_pending(), Some("level1.ssl".to_string()));
+        assert_eq!(
+            loader.take_pending(),
+            Some(("level1.ssl".to_string(), ContentLoadKind::Replace))
+        );
     }
 
     #[test]
     fn test_queue_load_trims_trailing_spaces() {
         let mut loader = ContentLoader::new();
         loader.queue_load("BBLADE  /level1.ssl");
-        assert_eq!(loader.take_pending(), Some("BBLADE/level1.ssl".to_string()));
+        assert_eq!(
+            loader.take_pending(),
+            Some(("BBLADE/level1.ssl".to_string(), ContentLoadKind::Replace))
+        );
     }
 
     #[test]
     fn test_queue_load_trims_leading_spaces() {
         let mut loader = ContentLoader::new();
         loader.queue_load("  BBLADE/level1.ssl");
-        assert_eq!(loader.take_pending(), Some("BBLADE/level1.ssl".to_string()));
+        assert_eq!(
+            loader.take_pending(),
+            Some(("BBLADE/level1.ssl".to_string(), ContentLoadKind::Replace))
+        );
     }
 
     #[test]
     fn test_queue_load_removes_empty_segments() {
         let mut loader = ContentLoader::new();
         loader.queue_load("///BBLADE///level1.ssl///");
-        assert_eq!(loader.take_pending(), Some("BBLADE/level1.ssl".to_string()));
+        assert_eq!(
+            loader.take_pending(),
+            Some(("BBLADE/level1.ssl".to_string(), ContentLoadKind::Replace))
+        );
     }
 
     #[test]
@@ -184,7 +218,10 @@ mod tests {
         loader.queue_load("  Game Dir  /  Sub Dir  /  file.ssl  ");
         assert_eq!(
             loader.take_pending(),
-            Some("Game Dir/Sub Dir/file.ssl".to_string())
+            Some((
+                "Game Dir/Sub Dir/file.ssl".to_string(),
+                ContentLoadKind::Replace
+            ))
         );
     }
 
@@ -202,7 +239,41 @@ mod tests {
         let mut loader = ContentLoader::new();
         loader.queue_load("first.ssl");
         loader.queue_load("second.ssl");
-        assert_eq!(loader.take_pending(), Some("second.ssl".to_string()));
+        assert_eq!(
+            loader.take_pending(),
+            Some(("second.ssl".to_string(), ContentLoadKind::Replace))
+        );
+    }
+
+    #[test]
+    fn test_queue_child_marks_launch_kind() {
+        let mut loader = ContentLoader::new();
+        loader.queue_child("child.smf");
+        assert_eq!(
+            loader.take_pending(),
+            Some(("child.smf".to_string(), ContentLoadKind::LaunchChild))
+        );
+    }
+
+    #[test]
+    fn test_replacement_overwrites_child_kind() {
+        let mut loader = ContentLoader::new();
+        loader.queue_child("child.smf");
+        loader.queue_load("scene.ssl");
+        assert_eq!(
+            loader.take_pending(),
+            Some(("scene.ssl".to_string(), ContentLoadKind::Replace))
+        );
+    }
+
+    #[test]
+    fn test_old_serialized_loader_defaults_to_replacement() {
+        let mut loader: ContentLoader =
+            serde_json::from_str(r#"{"pending_content":"scene.ssl"}"#).unwrap();
+        assert_eq!(
+            loader.take_pending(),
+            Some(("scene.ssl".to_string(), ContentLoadKind::Replace))
+        );
     }
 
     #[test]

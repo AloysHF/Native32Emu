@@ -22,6 +22,11 @@ pub(crate) struct VideoState {
 }
 
 #[derive(Serialize, Deserialize)]
+pub(crate) struct ReturnFrameState {
+    pub content_path: String,
+}
+
+#[derive(Serialize, Deserialize)]
 pub(crate) struct EmulatorState {
     pub content_path: String,
     pub content_crc32: u32,
@@ -33,6 +38,9 @@ pub(crate) struct EmulatorState {
     pub renderer: RendererState,
     pub content_loader: ContentLoader,
     pub menu_context: Option<String>,
+    /// None identifies states written before parent-SMF navigation was added.
+    #[serde(default)]
+    pub return_stack: Option<Vec<ReturnFrameState>>,
     pub tick_count: u64,
     pub time_ms: u32,
     pub pending_videos: Vec<String>,
