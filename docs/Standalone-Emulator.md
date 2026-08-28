@@ -33,9 +33,9 @@ native32-emu path/to/game.zip
 
 When loading from a `.zip` file, the emulator starts the package's `FHUI.smf`
 or `NA32UI.smf` menu. When that SMF launches a child SMF through `StartGame`,
-pressing **ESC** during gameplay reloads the parent and restores its saved menu
-context. Internal `.ssl` scene changes remain part of the child game and do not
-add return levels. Pressing **ESC** on the initial menu exits the emulator.
+pressing **ESC** during gameplay reloads the parent as a fresh session.
+Internal `.ssl` scene changes remain part of the child game and do not add
+return levels. Pressing **ESC** on the initial menu exits the emulator.
 
 The same relationship-based behavior applies outside ZIP mode: a directly
 loaded SMF can launch a child and receive control again, while a directly

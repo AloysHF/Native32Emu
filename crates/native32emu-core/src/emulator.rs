@@ -25,7 +25,6 @@ fn timeline_sound_value(index: u16, loop_count: i16) -> u16 {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ReturnFrame {
     path: PathBuf,
-    menu_context: Option<String>,
 }
 
 /// The platform-independent emulator core.
@@ -157,7 +156,7 @@ impl Emulator {
             return Ok(false);
         };
 
-        self.load_path(frame.path, frame.menu_context)?;
+        self.load_path(frame.path)?;
         self.return_stack.pop();
         Ok(true)
     }
@@ -165,12 +164,12 @@ impl Emulator {
     /// Reload the emulator from the given file path, performing a full state
     /// reset and starting a new navigation session.
     pub fn reload_from_path(&mut self, path: PathBuf) -> Result<()> {
-        self.load_path(path, None)?;
+        self.load_path(path)?;
         self.return_stack.clear();
         Ok(())
     }
 
-    fn load_path(&mut self, path: PathBuf, menu_context: Option<String>) -> Result<()> {
+    fn load_path(&mut self, path: PathBuf) -> Result<()> {
         let data = std::fs::read(&path)
             .with_context(|| format!("Failed to read game file: {}", path.display()))?;
         let mut reader = Native32Reader::new(data);
@@ -188,7 +187,7 @@ impl Emulator {
         self.vm = ActionVM::new();
         self.content_loader = ContentLoader::new();
         self.cur_frame_objects.clear();
-        self.menu_context = menu_context;
+        self.menu_context = None;
         self.filename = path;
         self.reader = reader;
         self.audio = AudioEngine::new(self.reader.colorspace, (self.audio.volume * 100.0) as u32);
@@ -621,7 +620,6 @@ impl Emulator {
         let return_frame =
             should_push_return_frame(kind, &self.filename, &fullpath).then(|| ReturnFrame {
                 path: self.filename.clone(),
-                menu_context: self.menu_context.clone(),
             });
 
         // Stop all sounds
@@ -699,7 +697,6 @@ impl Emulator {
                         &self.content_root,
                         "return target",
                     )?,
-                    menu_context: frame.menu_context.clone(),
                 })
             })
             .collect::<Result<Vec<_>>>()?;
@@ -736,8 +733,8 @@ impl Emulator {
         let state = crate::save_state::decode(buffer)?;
         let content_path =
             resolve_state_content_path(&self.content_root, &state.content_path, "current content")?;
-        let (return_stack, menu_context) = if let Some(saved_stack) = &state.return_stack {
-            let stack = saved_stack
+        let return_stack = if let Some(saved_stack) = &state.return_stack {
+            saved_stack
                 .iter()
                 .map(|frame| {
                     let path = resolve_state_content_path(
@@ -748,27 +745,19 @@ impl Emulator {
                     if !has_extension(&path, "smf") {
                         anyhow::bail!("save-state return target is not an SMF file");
                     }
-                    Ok(ReturnFrame {
-                        path,
-                        menu_context: frame.menu_context.clone(),
-                    })
+                    Ok(ReturnFrame { path })
                 })
-                .collect::<Result<Vec<_>>>()?;
-            (stack, state.menu_context.clone())
+                .collect::<Result<Vec<_>>>()?
         } else if !self.return_stack.is_empty() {
             // Loading an old state during an active session keeps its known parents.
-            (self.return_stack.clone(), state.menu_context.clone())
+            self.return_stack.clone()
         } else if self._temp_dir.is_some() && self.filename != content_path {
             // Old ZIP save states relied on the package entry point implicitly.
-            (
-                vec![ReturnFrame {
-                    path: self.filename.clone(),
-                    menu_context: state.menu_context.clone(),
-                }],
-                None,
-            )
+            vec![ReturnFrame {
+                path: self.filename.clone(),
+            }]
         } else {
-            (Vec::new(), state.menu_context.clone())
+            Vec::new()
         };
         let data = std::fs::read(&content_path).with_context(|| {
             format!(
@@ -801,7 +790,7 @@ impl Emulator {
         self.vm.vars = state.vm_vars;
         self.vm.rng_state = state.rng_state;
         self.content_loader = state.content_loader;
-        self.menu_context = menu_context;
+        self.menu_context = state.menu_context;
         self.return_stack = return_stack;
         self.tick_count = state.tick_count;
         self.time_ms = state.time_ms;

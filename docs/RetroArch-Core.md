@@ -59,11 +59,10 @@ platform-specific installation requirements:
 ### Return and Exit Behavior
 
 RetroPad **Select** is the core's back action. When one `.smf` application
-launches another through `StartGame`, pressing Select reloads the parent SMF
-and restores its saved menu context. Nested SMF launches can be unwound one
-level at a time. Internal `.ssl` scene transitions do not create extra return
-levels, so Select from any scene in the launched game still returns to its SMF
-launcher.
+launches another through `StartGame`, pressing Select reloads the parent SMF as
+a fresh session. Nested SMF launches can be unwound one level at a time.
+Internal `.ssl` scene transitions do not create extra return levels, so Select
+from any scene in the launched game still returns to its SMF launcher.
 
 This behavior is based on the content launch relationship rather than the
 container type or a menu filename. It works for menus loaded directly as well

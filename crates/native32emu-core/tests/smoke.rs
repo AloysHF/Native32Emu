@@ -909,7 +909,7 @@ fn back_action_returns_to_parent_smf() {
 
 #[test]
 #[ignore = "requires local Native32 game assets (set NATIVE32_GAME_DIR)"]
-fn direct_smf_child_launch_restores_parent_context() {
+fn direct_smf_child_launch_reloads_parent() {
     let dir = game_dir().expect("no game directory found");
     let parent = find_asset(&dir, "FHUI.smf").expect("FHUI.smf not found");
     let mut games = Vec::new();
@@ -938,7 +938,7 @@ fn direct_smf_child_launch_restores_parent_context() {
     assert_eq!(emu.menu_context, None);
     assert!(emu.try_return_to_parent().expect("return to direct parent"));
     assert_eq!(emu.filename, parent);
-    assert_eq!(emu.menu_context.as_deref(), Some("category=2;game=4"));
+    assert_eq!(emu.menu_context, None);
     assert!(!emu
         .try_return_to_parent()
         .expect("back action at the direct parent failed"));
@@ -972,10 +972,8 @@ fn nested_smf_return_stack_survives_save_state() {
     };
 
     let mut emu = Emulator::from_path(root.clone(), 100).expect("load root SMF");
-    emu.menu_context = Some("root-context".to_string());
     emu.content_loader.queue_child(&relative_name(&children[0]));
     emu.tick();
-    emu.menu_context = Some("child-context".to_string());
     emu.frame_player.take_next_frame();
     emu.frame_player.playing = false;
     emu.content_loader.queue_child(&relative_name(&children[1]));
@@ -992,13 +990,49 @@ fn nested_smf_return_stack_survives_save_state() {
 
     assert!(emu.try_return_to_parent().expect("return to child SMF"));
     assert_eq!(emu.filename, children[0]);
-    assert_eq!(emu.menu_context.as_deref(), Some("child-context"));
     assert!(emu.try_return_to_parent().expect("return to root SMF"));
     assert_eq!(emu.filename, root);
-    assert_eq!(emu.menu_context.as_deref(), Some("root-context"));
     assert!(!emu
         .try_return_to_parent()
         .expect("back action at root failed"));
+}
+
+#[test]
+#[ignore = "requires packed local Native32 assets (set NATIVE32_PACKED_GAME_DIR)"]
+fn na32ui_return_rebuilds_game_list() {
+    let dir = packed_game_dir().expect("no packed game directory found");
+    let menu = find_asset(&dir, "NA32UI.smf").expect("NA32UI.smf not found");
+    let mut emu = run_scripted(&menu, 260, |frame| {
+        if (50..53).contains(&frame) || (110..113).contains(&frame) {
+            vec![KEY_Z]
+        } else {
+            vec![]
+        }
+    })
+    .expect("run NA32UI menu");
+    assert_ne!(emu.filename, menu, "NA32UI did not launch a child SMF");
+    assert!(emu.try_return_to_parent().expect("return to NA32UI"));
+    assert_eq!(emu.menu_context, None);
+
+    for _ in 0..180 {
+        emu.set_buttons(&[]);
+        emu.tick();
+        emu.draw();
+    }
+    for frame in 0..120 {
+        let buttons = if (10..13).contains(&frame) {
+            vec![KEY_Z]
+        } else {
+            vec![]
+        };
+        emu.set_buttons(&buttons);
+        emu.tick();
+        emu.draw();
+    }
+    assert!(
+        emu.renderer.sprite_override_count() > 0,
+        "NA32UI did not rebuild its game-list images"
+    );
 }
 
 /// A placed Pirate bomb must start at the template's first visible frame.

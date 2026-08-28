@@ -24,7 +24,6 @@ pub(crate) struct VideoState {
 #[derive(Serialize, Deserialize)]
 pub(crate) struct ReturnFrameState {
     pub content_path: String,
-    pub menu_context: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
