@@ -6,7 +6,7 @@ All 84 Native32 games in the test suite load and run without fatal errors. Each 
 
 | # | 游戏名 | 英文名 | 文件名 | 图片 | 游戏介绍 | Status |
 |---|--------|--------|--------|------|----------|--------|
-| 1 | 主菜单 | FHUI | tmp/native32_game/FHUI.smf | ![主菜单](images/root/FHUI.png) | — | ✅ Pass |
+| 1 | 主菜单 | FHUI | tmp/native32_game/FHUI.smf | ![主菜单](images/FHUI.png) | — | ✅ Pass |
 
 ## EACT — Action Games (11 games)
 
