@@ -439,7 +439,8 @@ impl Native32Reader {
             return Some(cached.clone());
         }
 
-        let ptr_idx = self.base + self.frame_idx as usize + 4 * (frame - 1) as usize;
+        let frame_offset = (frame as usize).checked_sub(1)?;
+        let ptr_idx = self.base + self.frame_idx as usize + 4 * frame_offset;
         if ptr_idx + 4 > self.data.len() {
             return None;
         }
@@ -490,7 +491,10 @@ impl Native32Reader {
             return cached.clone();
         }
 
-        let idx_ptr = self.base + self.movie_idx as usize + 4 * (movie - 1) as usize;
+        let Some(movie_offset) = (movie as usize).checked_sub(1) else {
+            return Vec::new();
+        };
+        let idx_ptr = self.base + self.movie_idx as usize + 4 * movie_offset;
         if idx_ptr + 4 > self.data.len() {
             return Vec::new();
         }
@@ -527,7 +531,11 @@ impl Native32Reader {
             return cached.clone();
         }
 
-        let ptr = self.base + self.image_idx as usize + 4 * (index - 1) as usize;
+        let Some(image_offset) = (index as usize).checked_sub(1) else {
+            self.images_cache.insert(index, None);
+            return None;
+        };
+        let ptr = self.base + self.image_idx as usize + 4 * image_offset;
         if ptr + 4 > self.data.len() {
             self.images_cache.insert(index, None);
             return None;
@@ -620,7 +628,10 @@ impl Native32Reader {
             return cached.clone();
         }
 
-        let cond_table_idx = self.base + self.button_cond_idx as usize + (button - 1) as usize * 4;
+        let Some(button_offset) = (button as usize).checked_sub(1) else {
+            return Vec::new();
+        };
+        let cond_table_idx = self.base + self.button_cond_idx as usize + button_offset * 4;
         if cond_table_idx + 4 > self.data.len() {
             return Vec::new();
         }
@@ -985,5 +996,34 @@ mod tests {
             ActionPayload::Integer(v) => assert_eq!(v, 42),
             _ => panic!("expected Integer"),
         }
+    }
+
+    // === resource getter index-0 tests ===
+    // Resource indices are 1-based. A malformed file can reference index 0,
+    // which previously underflowed `index - 1` (panic in debug builds). The
+    // getters must reject it and return empty, like get_sound already does.
+
+    #[test]
+    fn test_get_frame_index_zero_returns_none() {
+        let mut reader = Native32Reader::new(vec![0u8; 4096]);
+        assert!(reader.get_frame(0).is_none());
+    }
+
+    #[test]
+    fn test_get_image_index_zero_returns_none() {
+        let mut reader = Native32Reader::new(vec![0u8; 4096]);
+        assert!(reader.get_image(0).is_none());
+    }
+
+    #[test]
+    fn test_get_movie_index_zero_returns_empty() {
+        let mut reader = Native32Reader::new(vec![0u8; 4096]);
+        assert!(reader.get_movie(0).is_empty());
+    }
+
+    #[test]
+    fn test_get_button_events_index_zero_returns_empty() {
+        let mut reader = Native32Reader::new(vec![0u8; 4096]);
+        assert!(reader.get_button_events(0).is_empty());
     }
 }
