@@ -236,9 +236,9 @@ pub extern "C" fn retro_run() {
             match emu.try_return_to_parent() {
                 Ok(true) => log::info!("Returned to the parent SMF"),
                 Ok(false) => {
-                    log::info!("Requesting frontend shutdown");
-                    callbacks::environment(RETRO_ENVIRONMENT_SHUTDOWN, ptr::null_mut());
-                    return;
+                    // No parent SMF (e.g. a directly loaded game): ignore the
+                    // press so a stray Select cannot end the session.
+                    log::info!("No parent SMF to return to; ignoring Select");
                 }
                 Err(e) => {
                     log::error!("Failed to reload the parent SMF: {}", e);
@@ -573,7 +573,7 @@ fn register_input_descriptors() {
             device: RETRO_DEVICE_JOYPAD,
             index: 0,
             id: RETRO_DEVICE_ID_JOYPAD_SELECT,
-            description: c"Return / Exit".as_ptr(),
+            description: c"Return to menu".as_ptr(),
         },
         // Terminator
         retro_input_descriptor {
