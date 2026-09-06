@@ -40,8 +40,9 @@ return levels. Pressing **ESC** on the initial menu exits the emulator.
 The same relationship-based behavior applies outside ZIP mode: a directly
 loaded SMF can launch a child and receive control again, while a directly
 loaded file with no parent exits on **ESC**. Nested SMF launches return one
-level at a time. RetroPad **Select** performs the same return-or-exit operation
-in the RetroArch core.
+level at a time. RetroPad **Select** performs the same return operation in the
+RetroArch core, but the core ignores Select instead of exiting when there is no
+parent SMF (see the [RetroArch Core](RetroArch-Core.md) guide).
 
 You can always print the built-in help with:
 

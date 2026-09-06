@@ -54,7 +54,8 @@ and all command-line options.
 Install **Native32 (Native32Emu)** from RetroArch's Core Downloader, or install
 the release files manually, then load a supported game through **Load Content**.
 Press RetroPad **Select** to return from a child game to the SMF that launched
-it. Press it with no parent SMF to close the core. This works for directly
+it. When there is no parent SMF, Select is ignored, so pressing it while
+playing a directly loaded game never closes the core. This works for directly
 loaded menus as well as ZIP packages.
 
 See the [RetroArch Core](docs/RetroArch-Core.md) guide for installation,
