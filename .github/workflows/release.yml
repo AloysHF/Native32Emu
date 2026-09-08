@@ -20,6 +20,10 @@ jobs:
           - platform: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             artifact: native32-emu-linux-aarch64
+          - platform: ubuntu-22.04
+            target: i686-unknown-linux-gnu
+            artifact: native32-emu-linux-i686
+            libretro_only: true
           - platform: macos-latest
             target: x86_64-apple-darwin
             artifact: native32-emu-macos-x86_64
@@ -29,6 +33,10 @@ jobs:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             artifact: native32-emu-windows-x86_64
+          - platform: windows-latest
+            target: i686-pc-windows-msvc
+            artifact: native32-emu-windows-i686
+            libretro_only: true
 
     runs-on: ${{ matrix.platform }}
 
@@ -52,7 +60,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libasound2-dev libx11-dev libxkbcommon-dev
 
+      - name: Install 32-bit Linux build dependencies
+        if: matrix.target == 'i686-unknown-linux-gnu'
+        run: sudo apt-get install -y gcc-multilib
+
       - name: Build standalone
+        # The standalone frontend needs a full set of 32-bit desktop dev
+        # packages on the runner; the 32-bit targets exist for RetroArch, so
+        # they build the core only, the way the GitLab jobs do.
+        if: ${{ !matrix.libretro_only }}
         run: cargo build -p native32emu --release --target ${{ matrix.target }}
 
       - name: Build libretro core
@@ -79,14 +95,14 @@ jobs:
           ls -la "$out"
 
       - name: Package (Unix)
-        if: runner.os != 'Windows'
+        if: ${{ runner.os != 'Windows' && !matrix.libretro_only }}
         run: |
           cd target/${{ matrix.target }}/release
           tar czf ../../../${{ matrix.artifact }}.tar.gz native32-emu
           cd ../../..
 
       - name: Package (Windows)
-        if: runner.os == 'Windows'
+        if: ${{ runner.os == 'Windows' && !matrix.libretro_only }}
         run: |
           cd target/${{ matrix.target }}/release
           7z a ../../../${{ matrix.artifact }}.zip native32-emu.exe
@@ -348,6 +364,8 @@ jobs:
             ### libretro core (for RetroArch)
             - Files ending in `-libretro.*` contain `native32emu_libretro.<ext>`
               plus `native32emu_libretro.info`, ready to drop into RetroArch.
+            - 32-bit builds ship the core only: `native32-emu-linux-i686-libretro.tar.gz`
+              and `native32-emu-windows-i686-libretro.zip`.
 
             ### Android libretro core (for RetroArch on Android)
             - `native32-emu-android-libretro.tar.gz` contains

@@ -47,11 +47,36 @@ libretro-build-windows-x64:
     - .libretro-rust-windows-x64-default
     - .core-defs
 
+# Windows 32-bit
+# The image ships the 32-bit mingw toolchain alongside the 64-bit one, so as
+# above: the target, plus the linker rustc would otherwise guess wrong.
+libretro-build-windows-i686:
+  extends:
+    - .libretro-rust-windows-x64
+    - .core-defs
+  variables:
+    TARGET_ARCH: i686-pc-windows-gnu
+    CARGO_TARGET_I686_PC_WINDOWS_GNU_LINKER: i686-w64-mingw32-gcc
+  before_script:
+    - rustup target add i686-pc-windows-gnu
+
 # Linux 64-bit
 libretro-build-linux-x64:
   extends:
     - .libretro-rust-linux-x64-default
     - .core-defs
+
+# Linux 32-bit
+# Same image and template as the x64 job, only the target changes: the image
+# already carries gcc-multilib, so all this needs is the rustup target.
+libretro-build-linux-i686:
+  extends:
+    - .libretro-rust-linux-x64
+    - .core-defs
+  variables:
+    TARGET_ARCH: i686-unknown-linux-gnu
+  before_script:
+    - rustup target add i686-unknown-linux-gnu
 
 # Linux aarch64
 # Cross-compiled from the same image as the x64 job, the way that image already
