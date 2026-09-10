@@ -50,6 +50,13 @@ libretro-build-windows-x64:
 # Windows 32-bit
 # The image ships the 32-bit mingw toolchain alongside the 64-bit one, so as
 # above: the target, plus the linker rustc would otherwise guess wrong.
+#
+# That mingw is gcc 7.3-win32, which on 32-bit x86 uses SJLJ exceptions, while
+# rustc's i686-pc-windows-gnu expects DWARF-2 unwinding: its libgcc_eh has no
+# _Unwind_Resume, so linking the precompiled std fails. (The 64-bit job is
+# unaffected — it uses SEH.) Building std from source with panic=abort removes
+# the unwinding machinery altogether, which is also the sounder behaviour for a
+# cdylib: a Rust panic must not unwind across the libretro C boundary.
 libretro-build-windows-i686:
   extends:
     - .libretro-rust-windows-x64
@@ -57,8 +64,12 @@ libretro-build-windows-i686:
   variables:
     TARGET_ARCH: i686-pc-windows-gnu
     CARGO_TARGET_I686_PC_WINDOWS_GNU_LINKER: i686-w64-mingw32-gcc
+    RUSTFLAGS: "-Cpanic=abort"
   before_script:
-    - rustup target add i686-pc-windows-gnu
+    - rustup toolchain install nightly --component rust-src
+    - rustup +nightly target add i686-pc-windows-gnu
+  script:
+    - cargo +nightly build --release --target ${TARGET_ARCH} -Z build-std=std,panic_abort
 
 # Linux 64-bit
 libretro-build-linux-x64:
