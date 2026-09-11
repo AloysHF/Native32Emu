@@ -57,6 +57,18 @@ libretro-build-windows-x64:
 # unaffected — it uses SEH.) Building std from source with panic=abort removes
 # the unwinding machinery altogether, which is also the sounder behaviour for a
 # cdylib: a Rust panic must not unwind across the libretro C boundary.
+#
+# The build image already provides nightly with rust-src, so the toolchain is
+# not reinstalled here: rustup replacing a component that lives in an image
+# layer fails with "Invalid cross-device link".
+#
+# The rustup target is still needed even though std is built from source:
+# rsbegin.o and rsend.o, which every windows-gnu link pulls in, come from
+# library/rtstartup and are built by the compiler's own bootstrap, not by
+# cargo. -Z build-std does not produce them (wg-cargo-std-aware#46), so without
+# the precompiled target the link fails with "rsbegin.o: No such file or
+# directory". Only those two objects are taken from it; the std that gets
+# linked is the one built here.
 libretro-build-windows-i686:
   extends:
     - .libretro-rust-windows-x64
@@ -66,8 +78,7 @@ libretro-build-windows-i686:
     CARGO_TARGET_I686_PC_WINDOWS_GNU_LINKER: i686-w64-mingw32-gcc
     RUSTFLAGS: "-Cpanic=abort"
   before_script:
-    - rustup toolchain install nightly --component rust-src
-    - rustup +nightly target add i686-pc-windows-gnu
+    - rustup +nightly target add ${TARGET_ARCH}
   script:
     - cargo +nightly build --release --target ${TARGET_ARCH} -Z build-std=std,panic_abort
 
