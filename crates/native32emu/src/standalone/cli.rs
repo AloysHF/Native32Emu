@@ -69,6 +69,10 @@ pub struct Cli {
     #[arg(long)]
     pub show_gamepad: bool,
 
+    /// Disable physical gamepad input (keyboard remains available)
+    #[arg(long = "no-gamepad")]
+    pub no_gamepad: bool,
+
     /// Frames a held key waits before auto-repeat starts (at 30fps).
     /// Reproduces the hardware keypad's typematic delay; some games rely on it
     /// (e.g. walk->run on a held direction). Default: 12 (~0.4s).

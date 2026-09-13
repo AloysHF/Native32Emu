@@ -1,8 +1,8 @@
 # Standalone Emulator
 
 This guide covers installing and running the standalone `native32-emu` binary,
-loading individual games or ZIP packages, keyboard controls, cheats, display
-scaling, and every command-line option.
+loading individual games or ZIP packages, keyboard and gamepad controls,
+cheats, display scaling, and every command-line option.
 
 ## Installation
 
@@ -75,6 +75,7 @@ native32-emu [OPTIONS] <GAME_PATH>
 | `-S, --screenshot <PATH>` | path | — | Render some frames, save a PNG screenshot, then exit. |
 | `--screenshot-frames <N>` | integer | `30` | Number of frames to run before the screenshot is taken. |
 | `--show-gamepad` | flag | off | Draw an on-screen virtual gamepad overlay showing pressed keys. |
+| `--no-gamepad` | flag | off | Disable physical gamepad polling (keyboard remains available). |
 | `--repeat-delay <N>` | integer | `12` | Frames a held key waits before auto-repeat starts (see below). |
 | `--repeat-period <N>` | integer (≥1) | `3` | Frames between auto-repeat pulses once repeating (see below). |
 | `--filter <NAME>` | string | `nearest` | Pixel scaling filter: `nearest`, `bilinear`, `bicubic`, or `xbrz` (pixel-art). |
@@ -91,6 +92,37 @@ native32-emu [OPTIONS] <GAME_PATH>
 | `0x1e00` | ↓ Down | Down |
 | `0x4000` | Z | A |
 | `0x8800` | X | B / Menu |
+
+## Physical Gamepads
+
+The standalone emulator polls the first connected physical gamepad (Xbox-style
+pads, DualShock/DualSense, generic USB/Bluetooth controllers) in addition to
+the keyboard. Keyboard and gamepad inputs are merged each frame; `--swap-ab`
+applies to both.
+
+| Control | Native32 Button |
+|---|---|
+| D-pad or left/right sticks (0.5 deadzone) | D-pad |
+| South (Xbox A / PS Cross) | A |
+| East (Xbox B / PS Circle) | B |
+| Select / Back | Return to the parent SMF (or exit when there is no parent) |
+
+Select is handled as a host back action on the rising edge of the press, the
+same role ESC plays on the keyboard. It is not sent to the guest as a keycode.
+
+Pass `--no-gamepad` to disable physical controllers and use keyboard-only
+input. Connect/disconnect events are logged at info level.
+
+```bash
+# Keyboard only
+native32-emu --no-gamepad game.smf
+
+# Visualize the merged keyboard + gamepad mask
+native32-emu --show-gamepad game.smf
+```
+
+On Linux, building from source requires the `libudev` development package
+(`libudev-dev` on Debian/Ubuntu) in addition to the audio/window packages.
 
 ## Key Remapping
 
@@ -219,6 +251,9 @@ native32-emu --swap-ab --auto-skip-cutscenes game.smf
 
 # Show the on-screen gamepad overlay
 native32-emu --show-gamepad game.smf
+
+# Disable physical controllers (keyboard only)
+native32-emu --no-gamepad game.smf
 
 # Take a screenshot after 30 frames and exit
 native32-emu --screenshot screenshot.png --screenshot-frames 30 game.smf
