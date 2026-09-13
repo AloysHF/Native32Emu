@@ -101,7 +101,7 @@ PR must be submitted to sync the changes upstream.
 - Check the [Actions](https://github.com/AloysHF/Native32Emu/actions) tab
   for the failed run
 - The most common failure is a missing Linux build dependency — the CI installs
-  `libasound2-dev`, `libx11-dev`, and `libxkbcommon-dev` automatically
+  `libasound2-dev`, `libx11-dev`, `libxkbcommon-dev`, and `libudev-dev` automatically
 
 ### Re-triggering a release
 

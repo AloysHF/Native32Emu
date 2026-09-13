@@ -28,6 +28,7 @@ Native32 is a game format developed by Sunplus for DVD player and TV chipsets (c
 - **MPEG-1 cutscenes** — pure-Rust MPEG-1 video + MP2 audio decoder plays `SSL_PlayNext` logo/cutscene videos (no C dependency); skippable with A/B
 - **ZIP archive support** — load game packages directly from `.zip` files (auto-extracts and loads `FHUI.smf` or `NA32UI.smf`)
 - **Keyboard input** — configurable key remapping
+- **Physical gamepad support** — gilrs-polled controllers (D-pad/sticks, RetroPad face buttons, Select as back)
 - **Save system** — `.ssl_sav` file persistence
 - **SSL multi-file content** — seamless switching between game levels/files
 - **CLI controls** — scaling, fullscreen, volume adjustment
@@ -46,8 +47,8 @@ native32-emu path/to/game.smf
 ```
 
 See the [Standalone Emulator](docs/Standalone-Emulator.md) guide for
-installation, ZIP menu behavior, keyboard controls, cheats, display settings,
-and all command-line options.
+installation, ZIP menu behavior, keyboard and gamepad controls, cheats,
+display settings, and all command-line options.
 
 ### RetroArch Mode
 
@@ -137,6 +138,7 @@ crates/
 │       ├── main.rs              # Window loop and thin front-end
 │       └── standalone/
 │           ├── cli.rs           # Command-line argument parsing
+│           ├── gamepad.rs       # Physical gamepad polling via gilrs
 │           └── gamepad_overlay.rs  # On-screen virtual gamepad overlay
 └── native32emu-libretro/        # libretro cdylib (-> native32emu_libretro.{dll,so,dylib})
     ├── native32emu_libretro.info   # RetroArch core metadata

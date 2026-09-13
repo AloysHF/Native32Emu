@@ -1,7 +1,7 @@
 // Native32 Emulator - standalone front-end (minifb window + CLI).
 // This binary reuses the shared emulator core from the `native32emu` library
 // crate and only adds the platform layer: window management, command-line
-// argument parsing, keyboard input and the optional on-screen gamepad overlay.
+// argument parsing, keyboard/gamepad input and the optional on-screen overlay.
 // It is only compiled when the "standalone" feature is enabled.
 
 mod standalone;
@@ -13,6 +13,7 @@ use anyhow::{Context, Result};
 use native32emu_core::emulator::Emulator;
 
 use crate::standalone::cli::Cli;
+use crate::standalone::gamepad::GamepadMapper;
 use crate::standalone::gamepad_overlay::GamepadOverlay;
 use crate::standalone::scaler::{ScaleFilter, Scaler};
 
@@ -187,18 +188,26 @@ fn main() -> Result<()> {
 
     let frame_duration = Duration::from_millis(1000 / 30);
 
+    // Physical gamepad backend (keyboard remains available either way).
+    let mut gamepad = GamepadMapper::new(!cli.no_gamepad);
+
     // Main emulation loop
     let mut frame_count: u32 = 0;
     let screenshot_path = cli.screenshot.clone();
-    // Debounce counter: after returning to a parent via ESC, suppress further ESC
-    // detections for a few frames so the key release is not re-triggered.
+    // Debounce counter: after returning to a parent via ESC/Select, suppress
+    // further back detections for a few frames so the release is not re-triggered.
     let mut esc_cooldown: u32 = 0;
 
     while window.is_open() {
-        // Handle ESC key: return to a parent SMF or exit.
+        // Poll the gamepad first so Select can act as a host back action
+        // alongside ESC (return to a parent SMF or exit).
+        let gamepad_keys = gamepad.pressed_keycodes();
+        let gamepad_select = gamepad.select_just_pressed();
+
+        // Handle ESC / gamepad Select: return to a parent SMF or exit.
         if esc_cooldown > 0 {
             esc_cooldown -= 1;
-        } else if window.is_key_down(minifb::Key::Escape) {
+        } else if window.is_key_down(minifb::Key::Escape) || gamepad_select {
             match emu.try_return_to_parent() {
                 Ok(true) => {
                     esc_cooldown = 15; // ~0.5s at 30fps, enough for key release
@@ -214,8 +223,14 @@ fn main() -> Result<()> {
 
         let frame_start = Instant::now();
 
-        // Feed keyboard state into the shared core; tick consumes button actions
-        let pressed = emu.input.get_pressed_keycodes(&window);
+        // Feed keyboard + gamepad state into the shared core; the core applies
+        // typematic filtering and --swap-ab. Tick consumes button actions.
+        let mut pressed = emu.input.get_pressed_keycodes(&window);
+        for keycode in gamepad_keys {
+            if !pressed.contains(&keycode) {
+                pressed.push(keycode);
+            }
+        }
         emu.set_buttons(&pressed);
         // Allow skipping logo/cutscene videos with the A or B button, or
         // automatically when auto-skip is enabled.
