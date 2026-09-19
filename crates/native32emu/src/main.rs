@@ -11,6 +11,8 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result};
 
 use native32emu_core::emulator::Emulator;
+use native32emu_core::headless::{run_replay, ReplayConfig};
+use native32emu_core::movie::{InputLog, InputMovie};
 
 use crate::standalone::cli::Cli;
 use crate::standalone::gamepad::GamepadMapper;
@@ -94,6 +96,35 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse_args();
 
+    // Headless movie replay (no window). Game path may come from the movie header.
+    if let Some(movie_path) = cli.replay.clone() {
+        let movie = InputMovie::load(&movie_path)?;
+        let game_path = match &cli.game_path {
+            Some(p) => p.clone(),
+            None if !movie.game.is_empty() => std::path::PathBuf::from(&movie.game),
+            None => {
+                eprintln!("Error: pass <GAME_PATH> or set 'game:' in the movie file.");
+                std::process::exit(1);
+            }
+        };
+        if !game_path.exists() {
+            // Allow repo-relative paths stored in the movie header.
+            let alt = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .and_then(|p| p.parent())
+                .map(|root| root.join(&movie.game))
+                .filter(|p| p.exists());
+            match alt {
+                Some(p) => return run_replay_mode(&cli, &p, movie),
+                None => {
+                    eprintln!("Error: Game file not found: {}", game_path.display());
+                    std::process::exit(1);
+                }
+            }
+        }
+        return run_replay_mode(&cli, &game_path, movie);
+    }
+
     // Validate game path
     let game_path = match &cli.game_path {
         Some(p) => p.clone(),
@@ -113,7 +144,7 @@ fn main() -> Result<()> {
     log::info!("Loading game: {}", game_path.display());
 
     // Create the shared emulator core
-    let mut emu = Emulator::from_path(game_path, cli.volume)?;
+    let mut emu = Emulator::from_path(game_path.clone(), cli.volume)?;
 
     // Apply key remappings (standalone-only feature)
     let key_remappings = cli.parse_key_remappings();
@@ -191,6 +222,20 @@ fn main() -> Result<()> {
     // Physical gamepad backend (keyboard remains available either way).
     let mut gamepad = GamepadMapper::new(!cli.no_gamepad);
 
+    // Optional: record windowed human play to a text/JSON input movie.
+    let mut input_log = match &cli.record_input {
+        Some(path) => {
+            let mut log = InputLog::create(path.clone(), game_path.display().to_string())?;
+            log.movie_mut().auto_skip_cutscenes = cli.auto_skip_cutscenes;
+            for cheat in &cli.cheats {
+                log.movie_mut().cheats.push(cheat.clone());
+            }
+            log::info!("Recording input movie to {}", path.display());
+            Some(log)
+        }
+        None => None,
+    };
+
     // Main emulation loop
     let mut frame_count: u32 = 0;
     let screenshot_path = cli.screenshot.clone();
@@ -232,6 +277,9 @@ fn main() -> Result<()> {
             }
         }
         emu.set_buttons(&pressed);
+        if let Some(log) = input_log.as_mut() {
+            log.record_frame(u64::from(frame_count), &pressed);
+        }
         // Allow skipping logo/cutscene videos with the A or B button, or
         // automatically when auto-skip is enabled.
         if emu.is_cutscene_active()
@@ -303,5 +351,38 @@ fn main() -> Result<()> {
     }
 
     log::info!("Emulator exited normally");
+    if let Some(mut log) = input_log.take() {
+        match log.finish(u64::from(frame_count)) {
+            Ok(path) => log::info!(
+                "Input movie saved: {} ({} frames). Replay with --replay.",
+                path.display(),
+                frame_count
+            ),
+            Err(e) => log::error!("Failed to save input movie: {e}"),
+        }
+    }
+    Ok(())
+}
+
+fn run_replay_mode(cli: &Cli, game_path: &std::path::Path, movie: InputMovie) -> Result<()> {
+    let config = ReplayConfig {
+        movie,
+        dump_frames_dir: cli.dump_frames.clone(),
+        dump_every: cli.dump_every.max(1),
+        record_audio: cli.record_audio.clone(),
+        max_frames: cli.max_frames,
+        volume: cli.volume,
+    };
+    log::info!("Replaying movie on {}", game_path.display());
+    let result = run_replay(game_path, &config)?;
+    log::info!(
+        "Replay done: frames={} dumped={} content={}",
+        result.frames,
+        result.dumped_frames,
+        result.final_content
+    );
+    if let Some(path) = result.audio_path {
+        log::info!("Audio saved: {}", path.display());
+    }
     Ok(())
 }

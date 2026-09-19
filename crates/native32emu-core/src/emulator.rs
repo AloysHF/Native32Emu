@@ -66,6 +66,8 @@ pub struct Emulator {
     /// When true, cutscene videos are skipped automatically as soon as they
     /// become active, instead of waiting for the user to press A/B.
     pub auto_skip_cutscenes: bool,
+    /// Software-mix audio for headless WAV capture (survives content reloads).
+    audio_capture: bool,
     /// Temporary directory handle for ZIP extraction. When this field is
     /// dropped (e.g. when the Emulator is dropped), the directory is deleted.
     _temp_dir: Option<tempfile::TempDir>,
@@ -125,8 +127,15 @@ impl Emulator {
             active_video_name: None,
             return_stack: Vec::new(),
             auto_skip_cutscenes: false,
+            audio_capture: false,
             _temp_dir,
         })
+    }
+
+    /// Enable software-mix audio capture (kept across content reloads).
+    pub fn set_audio_capture(&mut self, enabled: bool) {
+        self.audio_capture = enabled;
+        self.audio.set_capture_audio(enabled);
     }
 
     /// Get the game resolution.
@@ -191,6 +200,7 @@ impl Emulator {
         self.filename = path;
         self.reader = reader;
         self.audio = AudioEngine::new(self.reader.colorspace, (self.audio.volume * 100.0) as u32);
+        self.audio.set_capture_audio(self.audio_capture);
         self.save_manager = SaveManager::new(&self.filename);
 
         Ok(())
@@ -648,6 +658,7 @@ impl Emulator {
         self.filename = fullpath;
         self.reader = reader;
         self.audio = AudioEngine::new(self.reader.colorspace, (self.audio.volume * 100.0) as u32);
+        self.audio.set_capture_audio(self.audio_capture);
         self.cur_frame_objects.clear();
 
         Ok(())

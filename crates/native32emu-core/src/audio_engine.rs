@@ -1,7 +1,6 @@
 // Audio engine: handles MP3 and raw PCM audio playback.
 
 use crate::file_loader::{AudioFormat, Colorspace, Native32Reader};
-#[cfg(not(feature = "standalone"))]
 use symphonia::core::{
     codecs::{audio::AudioDecoderOptions, CodecParameters},
     errors::Error as SymphoniaError,
@@ -33,8 +32,10 @@ pub struct AudioEngine {
     next_channel_id: usize,
     sample_frame_remainder: u32,
 
-    #[cfg(not(feature = "standalone"))]
+    /// Software mix channels (libretro / headless capture).
     channels: Vec<PlaybackChannel>,
+    /// When true, decode into `channels` for `get_pending_samples`.
+    capture_audio: bool,
     tone_phase: f64,
     tone_active: bool,
 }
@@ -63,14 +64,12 @@ struct SavedChannel {
     is_music: bool,
 }
 
-#[cfg(not(feature = "standalone"))]
 struct PlaybackChannel {
     state: SavedChannel,
     samples: Vec<i16>,
     finished: bool,
 }
 
-#[cfg(not(feature = "standalone"))]
 impl PlaybackChannel {
     fn next_frame(&mut self) -> Option<(i16, i16)> {
         loop {
@@ -134,6 +133,8 @@ impl AudioEngine {
                 colorspace,
                 next_channel_id: 1,
                 sample_frame_remainder: 0,
+                channels: Vec::new(),
+                capture_audio: false,
                 tone_phase: 0.0,
                 tone_active: false,
             }
@@ -147,15 +148,19 @@ impl AudioEngine {
                 next_channel_id: 1,
                 sample_frame_remainder: 0,
                 channels: Vec::new(),
+                capture_audio: true,
                 tone_phase: 0.0,
                 tone_active: false,
             }
         }
     }
 
-    /// Get pending audio samples for libretro mode.
-    /// Returns interleaved stereo i16 samples.
-    /// This should be called once per frame in retro_run().
+    /// Enable software mix for headless/WAV capture.
+    pub fn set_capture_audio(&mut self, enabled: bool) {
+        self.capture_audio = enabled;
+    }
+
+    /// Interleaved stereo i16 samples (30 fps pacing).
     pub fn get_pending_samples(&mut self) -> Vec<i16> {
         let sample_rate = self.output_sample_rate();
         self.sample_frame_remainder += sample_rate;
@@ -163,10 +168,6 @@ impl AudioEngine {
         self.sample_frame_remainder %= 30;
         let values_per_video_frame = frames_per_video_frame * 2;
 
-        #[cfg(feature = "standalone")]
-        let mut result = vec![0i16; values_per_video_frame];
-
-        #[cfg(not(feature = "standalone"))]
         let mut result = {
             let mut mixed = vec![(0i32, 0i32); frames_per_video_frame];
             for channel in &mut self.channels {
@@ -263,13 +264,16 @@ impl AudioEngine {
 
     #[cfg(not(feature = "standalone"))]
     fn play_mp3(&mut self, data: &[u8], repeat: u8, movie_name: &str) -> Option<usize> {
-        let samples = match decode_mp3(data, self.output_sample_rate()) {
-            Ok(samples) => samples,
-            Err(error) => {
-                log::warn!("Failed to decode MP3: {error}");
-                return None;
-            }
-        };
+        self.play_mp3_software(data, repeat, movie_name)
+    }
+
+    #[cfg(not(feature = "standalone"))]
+    fn play_raw(&mut self, data: &[u8], repeat: u8, movie_name: &str) -> Option<usize> {
+        self.play_raw_software(data, repeat, movie_name)
+    }
+
+    fn play_mp3_software(&mut self, data: &[u8], repeat: u8, movie_name: &str) -> Option<usize> {
+        let samples = decode_mp3(data, self.output_sample_rate()).ok()?;
         self.add_channel(
             samples,
             SavedAudioSource::Mp3(data.to_vec()),
@@ -279,8 +283,7 @@ impl AudioEngine {
         )
     }
 
-    #[cfg(not(feature = "standalone"))]
-    fn play_raw(&mut self, data: &[u8], repeat: u8, movie_name: &str) -> Option<usize> {
+    fn play_raw_software(&mut self, data: &[u8], repeat: u8, movie_name: &str) -> Option<usize> {
         let samples = raw_pcm_to_stereo(data);
         self.add_channel(
             samples,
@@ -291,7 +294,6 @@ impl AudioEngine {
         )
     }
 
-    #[cfg(not(feature = "standalone"))]
     fn add_channel(
         &mut self,
         samples: Vec<i16>,
@@ -303,19 +305,12 @@ impl AudioEngine {
         if samples.is_empty() {
             return None;
         }
-        self.channels.retain(|channel| !channel.finished);
+        self.channels.retain(|c| !c.finished);
         if is_music {
-            self.channels.retain(|channel| !channel.state.is_music);
-        } else if self
-            .channels
-            .iter()
-            .filter(|channel| !channel.state.is_music)
-            .count()
-            >= MAX_SOUND_EFFECTS
-        {
+            self.channels.retain(|c| !c.state.is_music);
+        } else if self.channels.iter().filter(|c| !c.state.is_music).count() >= MAX_SOUND_EFFECTS {
             return None;
         }
-
         let id = self.allocate_channel_id();
         self.channels.push(PlaybackChannel {
             state: SavedChannel {
@@ -329,21 +324,16 @@ impl AudioEngine {
             samples,
             finished: false,
         });
-        self.tone_active = false;
         Some(id)
     }
 
     pub(crate) fn save_state(&self) -> AudioState {
-        #[cfg(feature = "standalone")]
-        let channels = Vec::new();
-        #[cfg(not(feature = "standalone"))]
         let channels = self
             .channels
             .iter()
-            .filter(|channel| !channel.finished)
-            .map(|channel| channel.state.clone())
+            .filter(|c| !c.finished)
+            .map(|c| c.state.clone())
             .collect();
-
         AudioState {
             volume: self.volume,
             channels,
@@ -361,16 +351,11 @@ impl AudioEngine {
         self.sample_frame_remainder = state.sample_frame_remainder % 30;
         self.tone_phase = state.tone_phase;
         self.tone_active = state.tone_active;
-
-        #[cfg(not(feature = "standalone"))]
         for saved in state.channels {
             let samples = match &saved.source {
                 SavedAudioSource::Mp3(data) => match decode_mp3(data, self.output_sample_rate()) {
-                    Ok(samples) => samples,
-                    Err(error) => {
-                        log::warn!("Failed to restore MP3 channel: {error}");
-                        continue;
-                    }
+                    Ok(s) => s,
+                    Err(_) => continue,
                 },
                 SavedAudioSource::Raw(data) => raw_pcm_to_stereo(data),
                 SavedAudioSource::DecodedPcm(samples) => samples.clone(),
@@ -387,6 +372,9 @@ impl AudioEngine {
 
     #[cfg(feature = "standalone")]
     fn play_mp3(&mut self, data: &[u8], repeat: u8, movie_name: &str) -> Option<usize> {
+        if self.capture_audio {
+            return self.play_mp3_software(data, repeat, movie_name);
+        }
         let mixer = self.mixer.clone()?;
         if let Some(channel) = self.music_player.take() {
             channel.player.stop();
@@ -424,6 +412,9 @@ impl AudioEngine {
 
     #[cfg(feature = "standalone")]
     fn play_raw(&mut self, data: &[u8], repeat: u8, movie_name: &str) -> Option<usize> {
+        if self.capture_audio {
+            return self.play_raw_software(data, repeat, movie_name);
+        }
         let mixer = self.mixer.clone()?;
         self.sound_players.retain(|channel| !channel.player.empty());
         if self.sound_players.len() >= MAX_SOUND_EFFECTS {
@@ -473,6 +464,22 @@ impl AudioEngine {
         if samples.is_empty() || channels == 0 || sample_rate == 0 {
             return;
         }
+        if self.capture_audio {
+            let output = resample_to_stereo(
+                &samples,
+                channels as usize,
+                sample_rate,
+                self.output_sample_rate(),
+            );
+            let _ = self.add_channel(
+                output.clone(),
+                SavedAudioSource::DecodedPcm(output),
+                0,
+                "__cutscene__",
+                true,
+            );
+            return;
+        }
         let Some(mixer) = self.mixer.clone() else {
             return;
         };
@@ -514,6 +521,7 @@ impl AudioEngine {
 
     /// Stop all currently playing sounds.
     pub fn stop_all(&mut self) {
+        self.channels.clear();
         #[cfg(feature = "standalone")]
         {
             if let Some(channel) = self.music_player.take() {
@@ -609,7 +617,6 @@ impl AudioEngine {
     }
 }
 
-#[cfg(not(feature = "standalone"))]
 fn raw_pcm_to_stereo(data: &[u8]) -> Vec<i16> {
     let mut output = Vec::with_capacity(data.len());
     for chunk in data.as_chunks::<2>().0 {
@@ -620,7 +627,6 @@ fn raw_pcm_to_stereo(data: &[u8]) -> Vec<i16> {
     output
 }
 
-#[cfg(not(feature = "standalone"))]
 fn resample_to_stereo(
     samples: &[f32],
     channels: usize,
@@ -655,7 +661,6 @@ fn resample_to_stereo(
     output
 }
 
-#[cfg(not(feature = "standalone"))]
 fn decode_mp3(data: &[u8], output_rate: u32) -> anyhow::Result<Vec<i16>> {
     let source = Box::new(std::io::Cursor::new(data.to_vec()));
     let stream = MediaSourceStream::new(source, Default::default());

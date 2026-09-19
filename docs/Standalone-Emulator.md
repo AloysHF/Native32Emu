@@ -74,6 +74,12 @@ native32-emu [OPTIONS] <GAME_PATH>
 | `--cheat-debug-filter <GLOB>` | string | all | Only log VM variable names matching a case-sensitive glob (`*` and `?`). |
 | `-S, --screenshot <PATH>` | path | — | Render some frames, save a PNG screenshot, then exit. |
 | `--screenshot-frames <N>` | integer | `30` | Number of frames to run before the screenshot is taken. |
+| `--record-input <PATH>` | path | — | Record windowed play as a text/JSON input movie. |
+| `--replay <MOVIE>` | path | — | Replay an input movie headlessly (no window). |
+| `--dump-frames <DIR>` | path | — | Dump PNG frames during `--replay`. |
+| `--dump-every <N>` | integer | `2` | Dump every N frames during replay. |
+| `--record-audio <PATH>` | path | — | Write mixed audio WAV during replay. |
+| `--max-frames <N>` | integer | `120000` | Replay safety cap. |
 | `--show-gamepad` | flag | off | Draw an on-screen virtual gamepad overlay showing pressed keys. |
 | `--no-gamepad` | flag | off | Disable physical gamepad polling (keyboard remains available). |
 | `--repeat-delay <N>` | integer | `12` | Frames a held key waits before auto-repeat starts (see below). |
@@ -257,6 +263,11 @@ native32-emu --no-gamepad game.smf
 
 # Take a screenshot after 30 frames and exit
 native32-emu --screenshot screenshot.png --screenshot-frames 30 game.smf
+
+# Record human play, then replay to video (see Input-Movies.md)
+native32-emu --record-input runs\clear.nmov game.smf
+powershell -File scripts\replay-movie.ps1 -Movie runs\clear.nmov
+```
 
 # Fullscreen with smooth bilinear scaling
 native32-emu --fullscreen --filter bilinear game.smf

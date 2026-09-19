@@ -8,12 +8,17 @@ use super::constants::*;
 use super::types::*;
 use native32emu_core::emulator::Emulator;
 use native32emu_core::input_handler::InputHandler;
+use native32emu_core::movie::InputLog;
 use std::ffi::{c_void, CStr};
+use std::os::raw::c_char;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Global emulator instance
 static mut EMULATOR: Option<Emulator> = None;
+/// Human-play input movie log (plain text), when recording is enabled.
+static mut INPUT_LOG: Option<InputLog> = None;
+static mut INPUT_LOG_FRAME: u64 = 0;
 
 /// Previous RetroPad Select state, used to trigger the back action once per press.
 static RETURN_BUTTON_DOWN: AtomicBool = AtomicBool::new(false);
@@ -172,6 +177,18 @@ pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
                 log::info!("Game loaded: {} ({}x{})", path, width, height);
                 // Apply the user's current core option selections.
                 apply_core_options(&mut emu);
+                INPUT_LOG = None;
+                INPUT_LOG_FRAME = 0;
+                if let Some(log_path) = resolve_input_log_path(path) {
+                    match InputLog::create(&log_path, path) {
+                        Ok(mut log) => {
+                            log.movie_mut().auto_skip_cutscenes = emu.auto_skip_cutscenes;
+                            log::info!("Recording input movie to {}", log_path.display());
+                            INPUT_LOG = Some(log);
+                        }
+                        Err(e) => log::error!("Failed to start input log: {e}"),
+                    }
+                }
                 EMULATOR = Some(emu);
                 true
             }
@@ -183,10 +200,57 @@ pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
     }
 }
 
+/// Env `NATIVE32_RECORD_INPUT=<file>` or core option "Record input movie".
+fn resolve_input_log_path(content_path: &str) -> Option<std::path::PathBuf> {
+    if let Ok(p) = std::env::var("NATIVE32_RECORD_INPUT") {
+        let p = p.trim();
+        if !p.is_empty() {
+            return Some(std::path::PathBuf::from(p));
+        }
+    }
+    let enabled = get_core_option(c"native32emu_record_input")
+        .map(|v| v == "enabled")
+        .unwrap_or(false);
+    if !enabled {
+        return None;
+    }
+    let stem = std::path::Path::new(content_path)
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "content".into());
+    let dir = system_directory().join("Native32Emu").join("inputs");
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    Some(dir.join(format!("{stem}-{stamp}.nmov")))
+}
+
+fn system_directory() -> std::path::PathBuf {
+    let mut ptr: *const c_char = ptr::null();
+    let ok = callbacks::environment(
+        RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY,
+        &mut ptr as *mut _ as *mut c_void,
+    );
+    if ok && !ptr.is_null() {
+        if let Ok(s) = unsafe { CStr::from_ptr(ptr) }.to_str() {
+            return std::path::PathBuf::from(s);
+        }
+    }
+    std::path::PathBuf::from(".")
+}
+
 /// Unload the current game
 #[no_mangle]
 pub extern "C" fn retro_unload_game() {
     unsafe {
+        if let Some(mut log) = INPUT_LOG.take() {
+            match log.finish(INPUT_LOG_FRAME) {
+                Ok(path) => log::info!("Input movie saved: {}", path.display()),
+                Err(e) => log::error!("Failed to save input movie: {e}"),
+            }
+        }
+        INPUT_LOG_FRAME = 0;
         EMULATOR = None;
     }
     RETURN_BUTTON_DOWN.store(false, Ordering::Relaxed);
@@ -251,6 +315,10 @@ pub extern "C" fn retro_run() {
         // 3. Query joypad button state and convert to Native32 keycodes
         let buttons = query_joypad_buttons(0);
         emu.set_buttons(&buttons);
+        if let Some(log) = INPUT_LOG.as_mut() {
+            log.record_frame(INPUT_LOG_FRAME, &buttons);
+            INPUT_LOG_FRAME = INPUT_LOG_FRAME.saturating_add(1);
+        }
 
         // 4. During a cutscene, suppress game input and
         // allow the A or B button to skip the logo/cutscene videos instead.
@@ -453,6 +521,10 @@ fn set_core_options() {
         retro_variable {
             key: c"native32emu_auto_skip_cutscenes".as_ptr(),
             value: c"Auto-skip cutscene videos; disabled|enabled".as_ptr(),
+        },
+        retro_variable {
+            key: c"native32emu_record_input".as_ptr(),
+            value: c"Record input movie (text); disabled|enabled".as_ptr(),
         },
         // Terminator
         retro_variable {

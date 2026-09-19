@@ -65,6 +65,30 @@ pub struct Cli {
     #[arg(long = "screenshot-frames", default_value = "30")]
     pub screenshot_frames: u32,
 
+    /// Record windowed play as a text/JSON input movie (replay later)
+    #[arg(long = "record-input", value_name = "PATH")]
+    pub record_input: Option<PathBuf>,
+
+    /// Replay an input movie headlessly (implies no window)
+    #[arg(long = "replay", value_name = "MOVIE")]
+    pub replay: Option<PathBuf>,
+
+    /// Dump PNG frames into this directory during --replay
+    #[arg(long = "dump-frames", value_name = "DIR")]
+    pub dump_frames: Option<PathBuf>,
+
+    /// Dump one PNG every N frames when --dump-frames is set
+    #[arg(long = "dump-every", default_value = "2")]
+    pub dump_every: u32,
+
+    /// Write mixed audio to WAV during --replay
+    #[arg(long = "record-audio", value_name = "PATH")]
+    pub record_audio: Option<PathBuf>,
+
+    /// Safety cap on replayed frames
+    #[arg(long = "max-frames", default_value = "120000")]
+    pub max_frames: u64,
+
     /// Show an on-screen virtual gamepad overlay
     #[arg(long)]
     pub show_gamepad: bool,

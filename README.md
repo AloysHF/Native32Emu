@@ -32,6 +32,7 @@ Native32 is a game format developed by Sunplus for DVD player and TV chipsets (c
 - **Save system** — `.ssl_sav` file persistence
 - **SSL multi-file content** — seamless switching between game levels/files
 - **CLI controls** — scaling, fullscreen, volume adjustment
+- **Input movies** — record human play to a text movie and replay it headlessly (see docs/Input-Movies.md)
 - **Cheat system** — modify VM variables, sprite properties, and frame state at runtime; includes debug logging to discover cheat targets
 - **RetroArch integration** — libretro core for use with RetroArch frontend
 
