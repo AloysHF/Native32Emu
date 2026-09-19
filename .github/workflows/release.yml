@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: ubuntu-22.04
+          - platform: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact: native32-emu-linux-x86_64
           - platform: ubuntu-24.04-arm
@@ -118,7 +118,7 @@ jobs:
 
   build-android:
     name: Build libretro (Android)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -251,7 +251,7 @@ jobs:
 
   build-webos:
     name: Build libretro (webOS)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     env:
       WEBOS_TOOLCHAIN_URL: https://github.com/openlgtv/buildroot-nc4/releases/latest/download/arm-webos-linux-gnueabi_sdk-buildroot-x86_64.tar.gz
       RUST_TARGET: armv7-unknown-linux-gnueabi
