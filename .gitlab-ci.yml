@@ -20,9 +20,21 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/rust-windows-x64.yml'
 
+  # Windows 32-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/rust-windows-i686.yml'
+
   # Linux 64-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/rust-linux-x64.yml'
+
+  # Linux 32-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/rust-linux-i686.yml'
+
+  # Linux aarch64
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/rust-linux-aarch64.yml'
 
   # macOS/iOS/tvOS
   - project: 'libretro-infrastructure/ci-templates'
@@ -47,28 +59,29 @@ libretro-build-windows-x64:
     - .libretro-rust-windows-x64-default
     - .core-defs
 
+# Windows 32-bit
+libretro-build-windows-i686:
+  extends:
+    - .libretro-rust-windows-i686-default
+    - .core-defs
+
 # Linux 64-bit
 libretro-build-linux-x64:
   extends:
     - .libretro-rust-linux-x64-default
     - .core-defs
 
+# Linux 32-bit
+libretro-build-linux-i686:
+  extends:
+    - .libretro-rust-linux-i686-default
+    - .core-defs
+
 # Linux aarch64
-# Cross-compiled from the same image as the x64 job, the way that image already
-# cross-compiles the Apple and Android arm64 targets. There is no
-# rust-linux-aarch64.yml template yet (libretro/libretro-super#2030) and the
-# rust image is amd64-only, so the target and its linker are added here.
 libretro-build-linux-aarch64:
   extends:
-    - .libretro-rust-linux-x64
+    - .libretro-rust-linux-aarch64-default
     - .core-defs
-  variables:
-    TARGET_ARCH: aarch64-unknown-linux-gnu
-    STRIP: aarch64-linux-gnu-strip
-    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-  before_script:
-    - apt-get update -qy && apt-get install -yq gcc-aarch64-linux-gnu
-    - rustup target add aarch64-unknown-linux-gnu
 
 # macOS 64-bit
 libretro-build-osx-x64:
