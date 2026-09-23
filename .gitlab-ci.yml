@@ -20,6 +20,10 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/rust-windows-x64.yml'
 
+  # Windows 32-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/rust-windows-i686.yml'
+
   # Linux 64-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/rust-linux-x64.yml'
@@ -52,33 +56,10 @@ libretro-build-windows-x64:
     - .core-defs
 
 # Windows 32-bit
-# Not the official template: the image's i686 mingw is the SJLJ flavour, while
-# rustc's i686-pc-windows-gnu std unwinds with DWARF, so libgcc has no
-# _Unwind_Resume for it and the link ends there. Building std from source with
-# nightly -Z build-std no longer links either: current std asks for
-# -lsynchronization, which the image's mingw-w64 runtime does not ship.
-# llvm-mingw carries a libunwind that does - stood in as libgcc_eh - plus an
-# empty libgcc for the -lgcc the same link line asks for. dlltool still has to
-# be the GNU one; rustc calls it itself for raw-dylib and llvm-dlltool does not
-# stand in.
 libretro-build-windows-i686:
   extends:
-    - .libretro-rust-windows-x64
+    - .libretro-rust-windows-i686-default
     - .core-defs
-  variables:
-    TARGET_ARCH: i686-pc-windows-gnu
-    LLVM_MINGW: llvm-mingw-20230320-msvcrt-ubuntu-18.04-x86_64
-    STRIP: /opt/llvm-mingw-20230320-msvcrt-ubuntu-18.04-x86_64/bin/llvm-strip
-    CARGO_TARGET_I686_PC_WINDOWS_GNU_LINKER: /opt/llvm-mingw-20230320-msvcrt-ubuntu-18.04-x86_64/bin/i686-w64-mingw32-clang
-    CARGO_TARGET_I686_PC_WINDOWS_GNU_RUSTFLAGS: -L /opt/gcc-stub
-  before_script:
-    - apt-get update -qy && apt-get install -yq binutils-mingw-w64-i686
-    - curl -sSL -o /tmp/llvm-mingw.tar.xz "https://github.com/mstorsjo/llvm-mingw/releases/download/20230320/$LLVM_MINGW.tar.xz"
-    - tar xJf /tmp/llvm-mingw.tar.xz -C /opt
-    - mkdir -p /opt/gcc-stub
-    - /opt/$LLVM_MINGW/bin/llvm-ar crs /opt/gcc-stub/libgcc.a
-    - cp /opt/$LLVM_MINGW/i686-w64-mingw32/lib/libunwind.a /opt/gcc-stub/libgcc_eh.a
-    - rustup target add ${TARGET_ARCH}
 
 # Linux 64-bit
 libretro-build-linux-x64:
