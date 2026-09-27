@@ -56,6 +56,11 @@ platform-specific installation requirements:
 | B (SNES South) | `0x4000` | A |
 | Select (Right Shift) | — | Return to the parent SMF |
 
+Both left and right analog sticks map to the same Native32 directions as the
+D-pad. An axis must pass 50% deflection to register; centering the stick
+releases the direction. Diagonal movement is supported. No frontend
+**Analog to Digital Type** conversion is required.
+
 ### Return Behavior
 
 RetroPad **Select** is the core's back action. When one `.smf` application

@@ -58,6 +58,7 @@ Press RetroPad **Select** to return from a child game to the SMF that launched
 it. When there is no parent SMF, Select is ignored, so pressing it while
 playing a directly loaded game never closes the core. This works for directly
 loaded menus as well as ZIP packages.
+Both analog sticks also control movement, with a 50% deadzone.
 
 See the [RetroArch Core](docs/RetroArch-Core.md) guide for installation,
 supported platforms and features, RetroPad mapping, core options, and cheats.

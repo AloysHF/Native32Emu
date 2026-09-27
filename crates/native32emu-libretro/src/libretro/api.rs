@@ -610,20 +610,37 @@ fn is_rising_edge(is_down: bool, was_down: bool) -> bool {
 /// Native32 directional keycodes overlap (e.g. DOWN 0x1e00 contains all bits of
 /// UP 0x1c00 plus LEFT 0x0200), which would make a packed mask ambiguous.
 fn query_joypad_buttons(port: u32) -> Vec<u16> {
+    query_buttons_with(|device, index, id| callbacks::input_state(port, device, index, id))
+}
+
+/// Read both sticks as digital directions using the standalone deadzone (50%).
+fn query_buttons_with(state: impl Fn(u32, u32, u32) -> i16) -> Vec<u16> {
+    const STICK_DEADZONE: i16 = 0x4000;
+    let axes = [
+        RETRO_DEVICE_INDEX_ANALOG_LEFT,
+        RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+    ]
+    .map(|index| {
+        (
+            state(RETRO_DEVICE_ANALOG, index, RETRO_DEVICE_ID_ANALOG_X),
+            state(RETRO_DEVICE_ANALOG, index, RETRO_DEVICE_ID_ANALOG_Y),
+        )
+    });
     let mut buttons = Vec::new();
 
-    let state = |id: u32| -> bool { callbacks::input_state(port, RETRO_DEVICE_JOYPAD, 0, id) != 0 };
+    let state = |id: u32| -> bool { state(RETRO_DEVICE_JOYPAD, 0, id) != 0 };
 
-    if state(RETRO_DEVICE_ID_JOYPAD_LEFT) {
+    if state(RETRO_DEVICE_ID_JOYPAD_LEFT) || axes.iter().any(|(x, _)| *x < -STICK_DEADZONE) {
         buttons.push(NATIVE32_KEY_LEFT);
     }
-    if state(RETRO_DEVICE_ID_JOYPAD_RIGHT) {
+    if state(RETRO_DEVICE_ID_JOYPAD_RIGHT) || axes.iter().any(|(x, _)| *x > STICK_DEADZONE) {
         buttons.push(NATIVE32_KEY_RIGHT);
     }
-    if state(RETRO_DEVICE_ID_JOYPAD_UP) {
+    // Libretro Y is negative upwards, unlike gilrs in the standalone frontend.
+    if state(RETRO_DEVICE_ID_JOYPAD_UP) || axes.iter().any(|(_, y)| *y < -STICK_DEADZONE) {
         buttons.push(NATIVE32_KEY_UP);
     }
-    if state(RETRO_DEVICE_ID_JOYPAD_DOWN) {
+    if state(RETRO_DEVICE_ID_JOYPAD_DOWN) || axes.iter().any(|(_, y)| *y > STICK_DEADZONE) {
         buttons.push(NATIVE32_KEY_DOWN);
     }
     if state(RETRO_DEVICE_ID_JOYPAD_A) {
@@ -638,7 +655,153 @@ fn query_joypad_buttons(port: u32) -> Vec<u16> {
 
 #[cfg(test)]
 mod tests {
-    use super::is_rising_edge;
+    use super::*;
+
+    fn stick_buttons(index: u32, x: i16, y: i16) -> Vec<u16> {
+        query_buttons_with(|device, stick, axis| {
+            if device != RETRO_DEVICE_ANALOG || stick != index {
+                return 0;
+            }
+            match axis {
+                RETRO_DEVICE_ID_ANALOG_X => x,
+                RETRO_DEVICE_ID_ANALOG_Y => y,
+                _ => 0,
+            }
+        })
+    }
+
+    #[test]
+    fn both_sticks_map_all_directions_and_diagonals() {
+        for index in [
+            RETRO_DEVICE_INDEX_ANALOG_LEFT,
+            RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+        ] {
+            assert_eq!(stick_buttons(index, i16::MIN, 0), vec![NATIVE32_KEY_LEFT]);
+            assert_eq!(stick_buttons(index, i16::MAX, 0), vec![NATIVE32_KEY_RIGHT]);
+            assert_eq!(stick_buttons(index, 0, i16::MIN), vec![NATIVE32_KEY_UP]);
+            assert_eq!(stick_buttons(index, 0, i16::MAX), vec![NATIVE32_KEY_DOWN]);
+            assert_eq!(
+                stick_buttons(index, i16::MAX, i16::MIN),
+                vec![NATIVE32_KEY_RIGHT, NATIVE32_KEY_UP]
+            );
+            for value in [-0x4000, -1, 0, 1, 0x4000] {
+                assert!(stick_buttons(index, value, value).is_empty());
+            }
+            assert_eq!(stick_buttons(index, 0x4001, 0), vec![NATIVE32_KEY_RIGHT]);
+            assert_eq!(stick_buttons(index, -0x4001, 0), vec![NATIVE32_KEY_LEFT]);
+        }
+    }
+
+    #[test]
+    fn analog_and_dpad_deduplicate_and_preserve_face_buttons() {
+        let buttons = query_buttons_with(|device, index, id| match (device, index, id) {
+            (RETRO_DEVICE_ANALOG, _, RETRO_DEVICE_ID_ANALOG_X) => i16::MAX,
+            (RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT)
+            | (RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A)
+            | (RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B) => 1,
+            _ => 0,
+        });
+        assert_eq!(
+            buttons,
+            vec![NATIVE32_KEY_RIGHT, NATIVE32_KEY_B, NATIVE32_KEY_A]
+        );
+    }
+
+    #[test]
+    #[ignore = "requires local Bloody Blade assets (set NATIVE32_GAME_DIR)"]
+    fn bloody_blade_moves_with_libretro_analog_input() {
+        use native32emu_core::emulator::Emulator;
+        use std::path::{Path, PathBuf};
+
+        let root = std::env::var_os("NATIVE32_GAME_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tmp/native32_game")
+            });
+        // Isolate saves while following the user's SMF through its SSL transitions.
+        let sandbox = tempfile::tempdir().unwrap();
+        let launcher = sandbox.path().join("EPOP");
+        let scenes = sandbox.path().join("NA32SSL/ENGLISH/BBLADE");
+        std::fs::create_dir_all(&launcher).unwrap();
+        std::fs::create_dir_all(&scenes).unwrap();
+        std::fs::copy(root.join("EPOP/EBBLADE.smf"), launcher.join("EBBLADE.smf")).unwrap();
+        for entry in std::fs::read_dir(root.join("NA32SSL/ENGLISH/BBLADE")).unwrap() {
+            let entry = entry.unwrap();
+            if entry
+                .path()
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("ssl"))
+            {
+                std::fs::copy(entry.path(), scenes.join(entry.file_name())).unwrap();
+            }
+        }
+        let mut emu = Emulator::from_path(launcher.join("EBBLADE.smf"), 0).unwrap();
+        emu.set_auto_skip_cutscenes(true);
+        for frame in 0..800 {
+            let confirm = [200, 260, 320, 380, 600, 660, 720, 780].contains(&frame);
+            emu.set_buttons(&query_buttons_with(|device, _, id| {
+                i16::from(
+                    confirm && device == RETRO_DEVICE_JOYPAD && id == RETRO_DEVICE_ID_JOYPAD_B,
+                )
+            }));
+            emu.tick();
+            emu.get_pending_audio_samples();
+        }
+        assert_eq!(emu.filename.file_name().unwrap(), "BBPLAY10.SSL");
+        let position = |emu: &Emulator| -> (i32, i32) {
+            (
+                emu.vm.vars["p_x"].parse().unwrap(),
+                emu.vm.vars["p_y"].parse().unwrap(),
+            )
+        };
+        let start = position(&emu);
+        let mut initial_state = vec![0; emu.serialize_size()];
+        emu.serialize(&mut initial_state).unwrap();
+        for index in [
+            RETRO_DEVICE_INDEX_ANALOG_LEFT,
+            RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+        ] {
+            for (x, y) in [(i16::MIN, 0), (i16::MAX, 0), (0, i16::MIN), (0, i16::MAX)] {
+                emu.deserialize(&initial_state).unwrap();
+                for _ in 0..30 {
+                    emu.set_buttons(&stick_buttons(index, x, y));
+                    emu.tick();
+                    emu.get_pending_audio_samples();
+                }
+                let moved = position(&emu);
+                println!("stick {index}, axes ({x}, {y}): {start:?} -> {moved:?}");
+                match (x, y) {
+                    (i16::MIN, 0) => {
+                        assert!(moved.0 < start.0, "left stick input did not move left")
+                    }
+                    (i16::MAX, 0) => {
+                        assert!(moved.0 > start.0, "right stick input did not move right")
+                    }
+                    (0, i16::MIN) => assert!(moved.1 < start.1, "up stick input did not move up"),
+                    (0, i16::MAX) => {
+                        assert!(moved.1 > start.1, "down stick input did not move down")
+                    }
+                    _ => unreachable!(),
+                }
+                let dpad = match (x, y) {
+                    (i16::MIN, 0) => RETRO_DEVICE_ID_JOYPAD_LEFT,
+                    (i16::MAX, 0) => RETRO_DEVICE_ID_JOYPAD_RIGHT,
+                    (0, i16::MIN) => RETRO_DEVICE_ID_JOYPAD_UP,
+                    (0, i16::MAX) => RETRO_DEVICE_ID_JOYPAD_DOWN,
+                    _ => unreachable!(),
+                };
+                emu.deserialize(&initial_state).unwrap();
+                for _ in 0..30 {
+                    emu.set_buttons(&query_buttons_with(|device, _, id| {
+                        i16::from(device == RETRO_DEVICE_JOYPAD && id == dpad)
+                    }));
+                    emu.tick();
+                    emu.get_pending_audio_samples();
+                }
+                assert_eq!(position(&emu), moved, "analog movement differs from D-pad");
+            }
+        }
+    }
 
     #[test]
     fn rising_edge_only_fires_on_initial_press() {
