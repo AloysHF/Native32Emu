@@ -204,8 +204,10 @@ pub fn decode_image_yuv(data: &[u8]) -> Option<RgbaImage> {
             let cx = x.min(chroma_w.saturating_sub(1));
             let ci = y * chroma_w + cx;
             let c = y_2_2[li] as i32 - 16;
-            let d = u_2_2.get(ci).copied().unwrap_or(128) as i32 - 128;
-            let e = v_2_2.get(ci).copied().unwrap_or(128) as i32 - 128;
+            // Treat unresolved zero chroma as missing color (e.g. shadow stippling).
+            // Borrow neighbors first, then fall back to neutral per component.
+            let d = u_2_2.get(ci).copied().filter(|&v| v != 0).unwrap_or(128) as i32 - 128;
+            let e = v_2_2.get(ci).copied().filter(|&v| v != 0).unwrap_or(128) as i32 - 128;
             let r = clip((298 * c + 409 * e + 128) >> 8);
             let g = clip((298 * c - 100 * d - 208 * e + 128) >> 8);
             let b = clip((298 * c + 516 * d + 128) >> 8);
@@ -394,6 +396,81 @@ mod tests {
     }
 
     // === decode_image_yuv tests ===
+
+    fn yuv_quads(width: u16, height: u16, quads: &[[u8; 6]], repeat: bool) -> Vec<u8> {
+        let mut data = Vec::new();
+        data.extend_from_slice(&width.to_le_bytes());
+        data.extend_from_slice(&height.to_le_bytes());
+        let size = 2 + if repeat { 6 } else { quads.len() * 6 };
+        data.extend_from_slice(&(size as u32).to_le_bytes());
+        let op = quads.len() as u16 | if repeat { 0 } else { 0x8000 };
+        data.extend_from_slice(&op.to_le_bytes());
+        for quad in &quads[..if repeat { 1 } else { quads.len() }] {
+            data.extend_from_slice(quad);
+        }
+        data
+    }
+
+    #[test]
+    fn test_decode_yuv_zero_chroma_shadow_preserves_alpha() {
+        for repeat in [false, true] {
+            let data = yuv_quads(4, 2, &[[0, 16, 16, 0, 0, 0]; 2], repeat);
+            let img = decode_image_yuv(&data).unwrap();
+            assert_eq!(
+                img.pixels,
+                [0, 0xff000000, 0, 0xff000000, 0xff000000, 0, 0xff000000, 0]
+            );
+        }
+    }
+
+    #[test]
+    fn test_decode_yuv_missing_chroma_components_are_neutral() {
+        for (y, u, v, expected) in [
+            (99, 0, 0, 0xff616161),
+            (99, 0, 160, 0xff944761),
+            (99, 160, 0, 0xff6154a1),
+            (99, 160, 160, 0xff943aa1),
+            (145, 54, 34, 0xff00ff01),
+        ] {
+            let data = yuv_quads(2, 2, &[[y, y, y, y, u, v]], false);
+            assert_eq!(
+                decode_image_yuv(&data).unwrap().pixels,
+                [expected; 4],
+                "U={u}, V={v}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_decode_yuv_borrows_chroma_before_neutral_fallback() {
+        // Nonzero samples in each direction must win over neutral fallback.
+        let colored = [99, 99, 99, 99, 160, 160];
+        let missing = [99, 99, 99, 99, 0, 0];
+        let mut quads = [missing; 9];
+        for index in [1, 3, 5, 7] {
+            quads[index] = colored;
+        }
+        let img = decode_image_yuv(&yuv_quads(6, 6, &quads, false)).unwrap();
+        for (x, y) in [
+            (2, 2),
+            (3, 2),
+            (2, 3),
+            (3, 3),
+            (1, 0),
+            (0, 1),
+            (4, 0),
+            (5, 1),
+        ] {
+            assert_eq!(img.pixels[y * 6 + x], 0xff943aa1, "({x}, {y})");
+        }
+        assert_eq!(img.pixels[0], 0xff616161);
+    }
+
+    #[test]
+    fn test_decode_yuv_zero_chroma_odd_dimensions() {
+        let img = decode_image_yuv(&yuv_quads(3, 3, &[[16, 16, 16, 16, 0, 0]; 4], false)).unwrap();
+        assert_eq!(img.pixels, [0xff000000; 9]);
+    }
 
     #[test]
     fn test_decode_yuv_empty_data() {
