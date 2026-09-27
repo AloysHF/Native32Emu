@@ -27,6 +27,12 @@ pub const RETRO_DEVICE_ID_JOYPAD_R2: u32 = 13;
 pub const RETRO_DEVICE_ID_JOYPAD_L3: u32 = 14;
 pub const RETRO_DEVICE_ID_JOYPAD_R3: u32 = 15;
 
+/// Analog stick indices and axis IDs.
+pub const RETRO_DEVICE_INDEX_ANALOG_LEFT: u32 = 0;
+pub const RETRO_DEVICE_INDEX_ANALOG_RIGHT: u32 = 1;
+pub const RETRO_DEVICE_ID_ANALOG_X: u32 = 0;
+pub const RETRO_DEVICE_ID_ANALOG_Y: u32 = 1;
+
 /// Environment callback commands
 pub const RETRO_ENVIRONMENT_SET_ROTATION: u32 = 1;
 pub const RETRO_ENVIRONMENT_GET_CAN_DUPE: u32 = 3;

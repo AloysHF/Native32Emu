@@ -1427,6 +1427,7 @@ version = "1.3.0"
 dependencies = [
  "log",
  "native32emu-core",
+ "tempfile",
 ]
 
 [[package]]
