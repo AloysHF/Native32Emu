@@ -19,7 +19,7 @@ crc32fast.workspace = true
 image.workspace = true
 symphonia.workspace = true
 flate2.workspace = true
-zip = "8.6"  # ZIP archive extraction for game packages
+zip = "9.0"  # ZIP archive extraction for game packages
 tempfile = "3"  # Temporary directory management for ZIP extraction
 
 # Only needed by the standalone front-end's audio/input code paths.

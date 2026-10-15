@@ -32,10 +32,16 @@ pub fn extract_zip(zip_path: &Path) -> Result<(tempfile::TempDir, PathBuf)> {
             .by_index(i)
             .with_context(|| format!("Failed to read ZIP entry at index {}", i))?;
 
-        let outpath = extract_path.join(file.mangled_name());
+        let mangled_name = file
+            .mangled_name()
+            .with_context(|| format!("Failed to resolve path of ZIP entry at index {}", i))?;
+        let outpath = extract_path.join(mangled_name);
 
         // Skip directories (they'll be created as needed)
-        if file.name().ends_with('/') {
+        let entry_name = file
+            .name()
+            .with_context(|| format!("Failed to read name of ZIP entry at index {}", i))?;
+        if entry_name.ends_with('/') {
             fs::create_dir_all(&outpath)
                 .with_context(|| format!("Failed to create directory: {}", outpath.display()))?;
             continue;
