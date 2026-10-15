@@ -27,7 +27,7 @@ serde_json = "1"          # Versioned save-state payloads
 crc32fast = "1"           # Save-state integrity checks
 image = "0.25"            # Image processing
 clap = { version = "4", features = ["derive"] }  # CLI argument parsing (standalone)
-minifb = "0.28"           # Window creation and pixel rendering (standalone)
+minifb = "0.29"           # Window creation and pixel rendering (standalone)
 gilrs = "0.11"            # Physical gamepad polling (standalone)
 rodio = { version = "0.23", features = ["mp3"] }  # Audio playback, MP3 + PCM (standalone)
 symphonia = { version = "0.6.0", default-features = false, features = ["mp3"] }  # Pure-Rust MP3 decoding
