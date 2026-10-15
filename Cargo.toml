@@ -29,7 +29,7 @@ image = "0.25"            # Image processing
 clap = { version = "4", features = ["derive"] }  # CLI argument parsing (standalone)
 minifb = "0.28"           # Window creation and pixel rendering (standalone)
 gilrs = "0.11"            # Physical gamepad polling (standalone)
-rodio = { version = "0.22", features = ["mp3"] }  # Audio playback, MP3 + PCM (standalone)
+rodio = { version = "0.23", features = ["mp3"] }  # Audio playback, MP3 + PCM (standalone)
 symphonia = { version = "0.6.0", default-features = false, features = ["mp3"] }  # Pure-Rust MP3 decoding
 env_logger = "0.11"       # Log output to stderr (standalone)
 flate2 = "1"              # DEFLATE decompression for packed Native32 assets
