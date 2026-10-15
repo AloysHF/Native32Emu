@@ -682,16 +682,24 @@ impl Native32Reader {
 }
 
 fn parse_resolution(gen_str: &str) -> Option<(u32, u32)> {
-    // Match "Resolution_<width>_<height>"
-    if let Some(rest) = gen_str.strip_prefix("Resolution_") {
-        let parts: Vec<&str> = rest.split('_').collect();
-        if parts.len() >= 2 {
-            if let (Ok(w), Ok(h)) = (parts[0].parse::<u32>(), parts[1].parse::<u32>()) {
-                return Some((w, h));
-            }
-        }
+    // Match "Resolution_<width>_<height>". The height field may be followed
+    // by other generator text with no separator (e.g. the real Girl Time Show
+    // header "Resolution_800_450Gamemaker 1.3.14"), so parse the leading
+    // digits of each field instead of requiring the whole segment to be
+    // numeric.
+    let rest = gen_str.strip_prefix("Resolution_")?;
+    let mut fields = rest.splitn(3, '_');
+    let w = parse_leading_digits(fields.next()?)?;
+    let h = parse_leading_digits(fields.next()?)?;
+    Some((w, h))
+}
+
+fn parse_leading_digits(s: &str) -> Option<u32> {
+    let end = s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len());
+    if end == 0 {
+        return None;
     }
-    None
+    s[..end].parse().ok()
 }
 
 fn endian_swap_pcm16(data: &[u8]) -> Vec<u8> {
@@ -748,6 +756,16 @@ mod tests {
     fn test_parse_resolution_zero_dimensions() {
         // 0 is technically valid parse, caller checks for > 0
         assert_eq!(parse_resolution("Resolution_0_0"), Some((0, 0)));
+    }
+
+    #[test]
+    fn test_parse_resolution_generator_suffix() {
+        // Real-world header (Girl Time Show, issue #133): the generator name
+        // is concatenated right after the height with no separator.
+        assert_eq!(
+            parse_resolution("Resolution_800_450Gamemaker 1.3.14"),
+            Some((800, 450))
+        );
     }
 
     // === endian_swap_pcm16 tests ===
