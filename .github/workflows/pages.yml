@@ -55,16 +55,6 @@ jobs:
             echo "::warning::No EmulatorJS core in the nightly-build release; the online play page will ask for a local game file."
           fi
 
-      - name: Fetch demo game (optional)
-        env:
-          DEMO_GAME_URL: ${{ vars.NATIVE32_DEMO_GAME_URL }}
-        run: |
-          if [ -n "${DEMO_GAME_URL:-}" ]; then
-            curl -fsSL "$DEMO_GAME_URL" -o site/games/ebblade.zip
-          else
-            echo "NATIVE32_DEMO_GAME_URL is not set; site/play.html will offer local file selection."
-          fi
-
       - name: Prepare deployment directory
         run: |
           # Copy site files to repo root for deployment

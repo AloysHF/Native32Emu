@@ -1383,6 +1383,16 @@ body::after {
 .play-overlay p { color: var(--text-dim); max-width: 56ch; }
 .play-overlay .btn { margin-top: 4px; }
 .play-overlay[hidden] { display: none; }
+.play-overlay code { font-family: var(--font-mono); font-size: 0.9em; }
+
+.play-picker-error { color: var(--red); font-size: 0.85rem; }
+.play-picker-hint { font-size: 0.78rem; color: #6b7280; }
+.play-picker-hint a { color: var(--text-dim); text-decoration: underline; }
+
+.play-stage.is-drop {
+  border-color: rgba(74, 222, 128, 0.6);
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.18), 0 20px 60px rgba(0, 0, 0, 0.45);
+}
 
 .play-controls {
   margin-top: 16px;
@@ -1404,6 +1414,25 @@ body::after {
   border-radius: 5px;
   padding: 1px 6px;
 }
+
+.play-reset {
+  margin-left: auto;
+  padding: 4px 14px;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.play-reset:hover {
+  color: var(--green);
+  border-color: rgba(74, 222, 128, 0.4);
+}
+
+.play-reset[hidden] { display: none; }
 
 .play-note { margin-top: 12px; font-size: 0.8rem; color: #6b7280; }
 .play-note a { color: var(--text-dim); text-decoration: underline; }

@@ -68,9 +68,9 @@ release (≥ 4.2.3) and keep this `cores/` directory.
 <script src="data/loader.js"></script>
 ```
 
-`site/play.html` in this repository is a complete example: it probes for
-`games/ebblade.zip`, and falls back to a local file picker that runs the file
-from a blob URL without uploading it.
+`site/play.html` in this repository is a complete example: visitors pick a game
+file from their own machine (or drop it on the page) and it runs from a blob
+URL, so nothing is uploaded and the site does not need to host any game data.
 
 ### Content
 
@@ -81,8 +81,8 @@ The core accepts the same extensions as the desktop libretro build:
 - A `.zip` is extracted by EmulatorJS into the wasm filesystem with its
   directory structure preserved, then the core opens the archive's menu entry
   point (`FHUI.smf`, falling back to `NA32UI.smf`).
-- Multi-file SSL games must keep their original folders inside the archive,
-  for example:
+- Multi-file SSL games must be selected as a ZIP that keeps their original
+  folders, for example:
 
   ```
   EACT/EBBLADE.smf
@@ -90,10 +90,11 @@ The core accepts the same extensions as the desktop libretro build:
   NA32SSL/ENGLISH/LOGO/NALOGO.MPG
   ```
 
-  `scripts/pack-demo-game.sh` builds such an archive for 赤刃 (Bloody Blade)
-  from a local game collection.
+  A bare `.smf` from such a game will boot, but the core cannot find its
+  sibling SSL scenes and videos.
 
-Game data is copyrighted and is not distributed with this repository.
+Game data is copyrighted and is neither distributed with this repository nor
+required by the site: the play page only loads files the visitor selects.
 
 ## Saves
 
@@ -175,12 +176,9 @@ Pages workflow then:
 
 1. downloads the pinned EmulatorJS 4.2.3 runtime into `site/data/`,
 2. fetches `native32-emu-emulatorjs.zip` from `nightly-build` and copies the
-   `.data` files and report into `site/data/cores/`,
-3. optionally downloads a demo game package into `site/games/ebblade.zip` from
-   the `NATIVE32_DEMO_GAME_URL` repository variable.
+   `.data` files and report into `site/data/cores/`.
 
-Without `NATIVE32_DEMO_GAME_URL`, `site/play.html` simply offers local file
-selection instead of the one-click demo.
+No game data is deployed: `site/play.html` asks each visitor for a local file.
 
 ## Implementation notes
 
@@ -191,3 +189,6 @@ selection instead of the one-click demo.
   callback ABI does not survive the wasm bridge) and writes log messages to the
   browser console as `[Native32Emu] level: message`.
 - The wasm profile uses `panic = "abort"` to avoid unwinding overhead.
+- Local files are passed to EmulatorJS as blob URLs (File objects break its
+  basename logic). `EJS_gameName` therefore keeps the original file name,
+  including the extension, so single-file content is still recognised.

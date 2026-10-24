@@ -82,10 +82,11 @@ from a page:
 <script src="data/loader.js"></script>
 ```
 
-The demo in this repository (`site/play.html`) loads 赤刃 (Bloody Blade) when
-the game package is deployed, and otherwise lets visitors pick a local game
-file. See the [EmulatorJS Core](docs/EmulatorJS-Core.md) guide for the bundle
-layout, content packaging, saves, core options, and local builds.
+The demo in this repository (`site/play.html`) plays any Native32 game the
+visitor selects: pick a `.zip`, `.smf` or `.sgm` file and it runs locally in
+the browser without uploading anything. See the
+[EmulatorJS Core](docs/EmulatorJS-Core.md) guide for the bundle layout, content
+packaging, saves, core options, and local builds.
 
 ## Building
 

@@ -139,9 +139,9 @@
       'hero-scroll': '向下滚动探索',
       // play online
       'play-badge': '无需安装 · 浏览器直接运行',
-      'play-title': '在线体验《赤刃》',
-      'play-desc': '基于 EmulatorJS 的 libretro 核心，在浏览器中直接运行原版 Native32 游戏，支持键盘、手柄和手机触屏。',
-      'play-cta': '开始游戏',
+      'play-title': '在线试玩 Native32 游戏',
+      'play-desc': '选择本机的游戏 ZIP 或 SMF 文件，即可在浏览器中运行任意 Native32 游戏，支持键盘、手柄和手机触屏。',
+      'play-cta': '开始试玩',
       // about
       'about-title': '什么是 Native32？',
       'about-p1': 'Native32 是 <strong>Sunplus</strong> 公司为 DVD 播放器和电视芯片（约 2005–2011 年）开发的游戏格式。游戏运行在芯片内置的栈式虚拟机上，使用类 ActionScript 的字节码，配合光栅图形和 MP3/MPEG-1 多媒体。',
@@ -237,8 +237,8 @@
       'hero-scroll': 'Scroll to explore',
       // play online
       'play-badge': 'No install · runs in your browser',
-      'play-title': 'Play Bloody Blade Online',
-      'play-desc': 'A libretro core built for EmulatorJS — play the original Native32 game right in your browser with keyboard, gamepad, or touch controls.',
+      'play-title': 'Play Native32 Games Online',
+      'play-desc': 'Pick a game ZIP or SMF file from your device and play any Native32 game in the browser, with keyboard, gamepad, and touch controls.',
       'play-cta': 'Start Playing',
       // about
       'about-title': 'What is Native32?',
