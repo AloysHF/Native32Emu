@@ -8,16 +8,15 @@ linked against the `EmulatorJS/RetroArch` fork, and packaged as the
 
 ## What you get
 
-Every nightly and tagged release publishes:
+Every nightly and tagged release publishes a single asset:
 
-| File | Purpose |
-|------|---------|
-| `native32-emu-emulatorjs.zip` | Complete drop-in bundle (recommended) |
-| `native32emu-wasm.data` | WebGL2/WebAssembly core bundle |
-| `native32emu-legacy-wasm.data` | WebGL1-compatible fallback bundle |
+| File | Contents |
+|------|----------|
+| `native32-emu-emulatorjs.zip` | Both core variants, the build report `cores/reports/native32emu.json`, `core.json`, `build.json`, `license.txt` and a README |
 
-The core report (`native32emu.json`, build metadata) ships inside the ZIP as
-`cores/reports/native32emu.json` rather than as a separate release asset.
+The two `.data` files stay separate inside the ZIP: EmulatorJS requests
+`<core>-wasm.data` or `<core>-legacy-wasm.data` by name depending on WebGL2
+support, so one bundle cannot serve both cases.
 
 The bundle is laid out like this:
 

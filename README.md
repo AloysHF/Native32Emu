@@ -130,7 +130,7 @@ cargo +nightly build -p native32emu-libretro --target wasm32-unknown-emscripten 
 scripts/build-emulatorjs-core.sh
 ```
 
-Artifacts land in `out/emulatorjs/`, `out/*.data` and `out/native32-emu-emulatorjs.zip`. See
+Artifacts land in `out/emulatorjs/` and `out/native32-emu-emulatorjs.zip`. See
 [EmulatorJS Core](docs/EmulatorJS-Core.md) for the full pipeline.
 
 ## Testing

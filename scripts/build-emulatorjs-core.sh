@@ -201,12 +201,6 @@ rm -f "$ZIP"
     zip -q -r "$ZIP" cores core.json build.json license.txt README.md
 )
 
-# Flat copies for release pages / quick downloads.
-FLAT_DIR="$(cd "$OUT_DIR/.." && pwd)"
-cp "$OUT_DIR/cores/${CORE_NAME}-wasm.data" "$FLAT_DIR/"
-cp "$OUT_DIR/cores/${CORE_NAME}-legacy-wasm.data" "$FLAT_DIR/"
-cp "$OUT_DIR/cores/reports/${CORE_NAME}.json" "$FLAT_DIR/"
-
 echo "==> Done"
 echo "    bundle:  $(cd "$(dirname "$ZIP")" && pwd)/$(basename "$ZIP")"
 echo "    staging: $OUT_DIR"

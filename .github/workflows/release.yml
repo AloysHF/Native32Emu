@@ -378,9 +378,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: native32-emu-emulatorjs
-          path: |
-            out/native32-emu-emulatorjs.zip
-            out/*.data
+          path: out/native32-emu-emulatorjs.zip
 
   release:
     name: Create Release
@@ -436,7 +434,6 @@ jobs:
             - `native32-emu-emulatorjs.zip` contains a drop-in
               `cores/native32emu-wasm.data`, `cores/native32emu-legacy-wasm.data`
               and `cores/reports/native32emu.json` for EmulatorJS's `data/` directory.
-            - The individual `.data` files are attached for manual installation.
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
