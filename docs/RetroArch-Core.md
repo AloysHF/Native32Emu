@@ -71,7 +71,8 @@ from any scene in the launched game still returns to its SMF launcher.
 
 This behavior is based on the content launch relationship rather than the
 container type or a menu filename. It works for menus loaded directly as well
-as the `FHUI.smf` or `NA32UI.smf` menu selected when opening a ZIP package.
+as the `FHUI.smf`/`NA32UI.smf` menu or single-game SMF opened from a ZIP
+package.
 When the current session has no parent SMF, Select is ignored, so a stray
 Select press cannot end a game that was loaded directly; use RetroArch's own
 menu or exit hotkey to close the core instead.

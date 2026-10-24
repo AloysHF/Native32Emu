@@ -102,17 +102,85 @@ pub fn find_fhui_in_directory(dir: &Path) -> Option<PathBuf> {
     find_root_file(dir, "FHUI.smf")
 }
 
-/// Process a ZIP file: extract it and find its menu entry point.
+fn collect_smf_files(dir: &Path, found: &mut Vec<PathBuf>, depth: usize) {
+    if depth > 16 {
+        return;
+    }
+
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        let path = entry.path();
+        if file_type.is_dir() {
+            collect_smf_files(&path, found, depth + 1);
+        } else if file_type.is_file()
+            && path
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("smf"))
+        {
+            found.push(path);
+        }
+    }
+}
+
+/// Find the entry point of an extracted game package.
 ///
-/// Returns the `TempDir` handle (keep it alive to preserve the directory) and
-/// the path to the extracted entry-point SMF file. The directory is automatically
-/// deleted when the `TempDir` is dropped.
+/// Full collection packages expose `FHUI.smf` (or `NA32UI.smf`) at the archive
+/// root. Single-game packages keep the original directory layout, so their SMF
+/// is nested (for example `EACT/EBBLADE.smf`); when no menu entry point exists
+/// the archive's only SMF — or the one matching the archive's file stem — is
+/// the entry point.
+pub fn find_package_entrypoint(dir: &Path, archive_stem: Option<&str>) -> Option<PathBuf> {
+    if let Some(menu) = find_entrypoint_in_directory(dir) {
+        return Some(menu);
+    }
+
+    let mut smfs = Vec::new();
+    collect_smf_files(dir, &mut smfs, 0);
+
+    if let Some(stem) = archive_stem {
+        if let Some(matching) = smfs.iter().find(|path| {
+            path.file_stem()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.eq_ignore_ascii_case(stem))
+        }) {
+            return Some(matching.clone());
+        }
+    }
+
+    match smfs.len() {
+        1 => smfs.pop(),
+        count if count > 1 => {
+            log::warn!(
+                "ZIP contains {} SMF files and none matches the archive name; \
+                 refusing to guess the entry point",
+                count
+            );
+            None
+        }
+        _ => None,
+    }
+}
+
+/// Process a ZIP file: extract it and find its entry point.
+///
+/// The entry point is `FHUI.smf`/`NA32UI.smf` for full collection packages, or
+/// the package's SMF for single-game packages. Returns the `TempDir` handle
+/// (keep it alive to preserve the directory) and the path to the extracted
+/// entry-point SMF file. The directory is automatically deleted when the
+/// `TempDir` is dropped.
 pub fn load_zip_game(zip_path: &Path) -> Result<(tempfile::TempDir, PathBuf)> {
     log::info!("Extracting ZIP archive: {}", zip_path.display());
 
     let (temp_dir, extract_path) = extract_zip(zip_path)?;
+    let archive_stem = zip_path.file_stem().and_then(|stem| stem.to_str());
 
-    match find_entrypoint_in_directory(&extract_path) {
+    match find_package_entrypoint(&extract_path, archive_stem) {
         Some(entrypoint) => {
             log::info!("Found ZIP entry point: {}", entrypoint.display());
             Ok((temp_dir, entrypoint))
@@ -120,7 +188,8 @@ pub fn load_zip_game(zip_path: &Path) -> Result<(tempfile::TempDir, PathBuf)> {
         None => {
             // temp_dir is dropped here, automatically cleaning up the directory
             anyhow::bail!(
-                "No supported entry point (FHUI.smf or NA32UI.smf) found in ZIP archive: {}",
+                "No entry point found in ZIP archive (expected FHUI.smf, NA32UI.smf, \
+                 or the package's single game SMF): {}",
                 zip_path.display()
             );
         }
@@ -267,12 +336,75 @@ mod tests {
         let options = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Stored);
 
-        zip.start_file("other.smf", options).unwrap();
-        zip.write_all(b"fake smf content").unwrap();
+        zip.start_file("readme.txt", options).unwrap();
+        zip.write_all(b"no smf here").unwrap();
         zip.finish().unwrap();
 
         let result = load_zip_game(&zip_path);
         assert!(result.is_err());
+    }
+
+    fn write_zip(zip_path: &Path, files: &[(&str, &[u8])]) {
+        let file = fs::File::create(zip_path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored);
+        for (name, contents) in files {
+            zip.start_file(*name, options).unwrap();
+            zip.write_all(contents).unwrap();
+        }
+        zip.finish().unwrap();
+    }
+
+    #[test]
+    fn test_load_zip_game_with_single_nested_smf() {
+        let dir = tempfile::tempdir().unwrap();
+        let zip_path = dir.path().join("EBBLADE.zip");
+        write_zip(
+            &zip_path,
+            &[
+                ("EACT/EBBLADE.smf", b"fake game content"),
+                ("NA32SSL/ENGLISH/BBLADE/BBSTART.SSL", b"fake scene"),
+            ],
+        );
+
+        let (_temp_dir, entrypoint) = load_zip_game(&zip_path).unwrap();
+        assert_eq!(
+            entrypoint.file_stem().and_then(|name| name.to_str()),
+            Some("EBBLADE")
+        );
+    }
+
+    #[test]
+    fn test_load_zip_game_prefers_smf_matching_archive_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let zip_path = dir.path().join("GAMEONE.zip");
+        write_zip(
+            &zip_path,
+            &[
+                ("EACT/GAMEONE.smf", b"fake game content"),
+                ("EPOP/OTHER.smf", b"other game content"),
+            ],
+        );
+
+        let (_temp_dir, entrypoint) = load_zip_game(&zip_path).unwrap();
+        let name = entrypoint.file_stem().and_then(|name| name.to_str());
+        assert_eq!(name, Some("GAMEONE"));
+    }
+
+    #[test]
+    fn test_load_zip_game_ambiguous_smfs_without_name_match() {
+        let dir = tempfile::tempdir().unwrap();
+        let zip_path = dir.path().join("collection.zip");
+        write_zip(
+            &zip_path,
+            &[
+                ("EACT/ONE.smf", b"fake game content"),
+                ("EPOP/TWO.smf", b"other game content"),
+            ],
+        );
+
+        assert!(load_zip_game(&zip_path).is_err());
     }
 
     #[test]

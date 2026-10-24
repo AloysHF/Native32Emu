@@ -140,7 +140,7 @@
       // play online
       'play-badge': '无需安装 · 浏览器直接运行',
       'play-title': '在线试玩 Native32 游戏',
-      'play-desc': '选择本机的游戏 ZIP 或 SMF 文件，即可在浏览器中运行任意 Native32 游戏，支持键盘、手柄和手机触屏。',
+      'play-desc': '选择本机的游戏 ZIP 包，即可在浏览器中运行任意 Native32 游戏，支持键盘、手柄和手机触屏。',
       'play-cta': '开始试玩',
       // about
       'about-title': '什么是 Native32？',
@@ -170,7 +170,7 @@
       'feat-dual-title': '双前端架构',
       'feat-dual-desc': '平台无关的核心引擎 + 独立的 Standalone 和 RetroArch 前端，共享 100% 模拟逻辑；Standalone 支持键盘与实体手柄输入。',
       'feat-zip-title': 'ZIP 包加载',
-      'feat-zip-desc': '直接加载 .zip 游戏包，自动解压并启动 FHUI 或 NA32UI 主菜单，还原原始的游戏浏览体验。',
+      'feat-zip-desc': '直接加载 .zip 游戏包，自动解压并启动 FHUI 或 NA32UI 主菜单，或直接运行自包含的单款游戏包。',
       'feat-des-title': '金手指系统',
       'feat-des-desc': '运行时修改 VM 变量、精灵属性和帧状态，支持调试日志发现可用目标，轻松实现无限生命、跳关等作弊效果。',
       'feat-retro-title': 'RetroArch 核心',
@@ -238,7 +238,7 @@
       // play online
       'play-badge': 'No install · runs in your browser',
       'play-title': 'Play Native32 Games Online',
-      'play-desc': 'Pick a game ZIP or SMF file from your device and play any Native32 game in the browser, with keyboard, gamepad, and touch controls.',
+      'play-desc': 'Pick a game ZIP from your device and play any Native32 game in the browser, with keyboard, gamepad, and touch controls.',
       'play-cta': 'Start Playing',
       // about
       'about-title': 'What is Native32?',
@@ -268,7 +268,7 @@
       'feat-dual-title': 'Dual Frontend',
       'feat-dual-desc': 'A platform-independent core engine with separate Standalone and RetroArch frontends, sharing 100% of the emulation logic. Standalone supports keyboard and physical gamepad input.',
       'feat-zip-title': 'ZIP Archive Loading',
-      'feat-zip-desc': 'Load .zip game packages directly — auto-extract and launch the FHUI or NA32UI main menu for the original browsing experience.',
+      'feat-zip-desc': 'Load .zip game packages directly — auto-extract and launch the FHUI/NA32UI menu, or run a self-contained single-game package.',
       'feat-des-title': 'Cheat System',
       'feat-des-desc': 'Modify VM variables, sprite properties, and frame state at runtime. Debug logging helps discover cheat targets for infinite lives, level skips, and more.',
       'feat-retro-title': 'RetroArch Core',

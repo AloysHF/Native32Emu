@@ -25,14 +25,18 @@ The standalone emulator accepts `.smf`, `.sgm`, `.ssl`, and `.zip` files.
 # Load a game directly
 native32-emu path/to/game.smf
 
-# Load a ZIP package containing FHUI.smf or NA32UI.smf
+# Load a ZIP package containing FHUI.smf, NA32UI.smf, or a single game SMF
 native32-emu path/to/game.zip
 ```
 
 ### ZIP Mode
 
 When loading from a `.zip` file, the emulator starts the package's `FHUI.smf`
-or `NA32UI.smf` menu. When that SMF launches a child SMF through `StartGame`,
+or `NA32UI.smf` menu. If neither is present (a single-game package), it loads
+the archive's only `.smf`, preferring the one that matches the archive name.
+The archive's directory layout is preserved during extraction, so relative
+references to `.SSL` scenes and `.mpg` videos keep working. When the loaded SMF
+launches a child SMF through `StartGame`,
 pressing **ESC** during gameplay reloads the parent as a fresh session.
 Internal `.ssl` scene changes remain part of the child game and do not add
 return levels. Pressing **ESC** on the initial menu exits the emulator.
@@ -60,7 +64,7 @@ native32-emu [OPTIONS] <GAME_PATH>
 
 | Option | Value | Default | Description |
 |---|---|---|---|
-| `<GAME_PATH>` | path | *required* | Path to the game file (`.smf`, `.sgm`, `.ssl`, or `.zip`). For `.zip` files, extracts and loads `FHUI.smf` or `NA32UI.smf` automatically. |
+| `<GAME_PATH>` | path | *required* | Path to the game file (`.smf`, `.sgm`, `.ssl`, or `.zip`). For `.zip` files, extracts and loads `FHUI.smf`/`NA32UI.smf`, or the package's single game SMF. |
 | `-s, --scale <N>` | `1`–`16` | `1` | Integer scaling factor for the window. |
 | `-f, --fullscreen` | flag | off | Run in borderless fullscreen at the desktop resolution. |
 | `-v, --volume <N>` | `0`–`100` | `100` | Volume level (`0` = mute, `100` = original). |
@@ -237,7 +241,7 @@ native32-emu --scale 4 --filter xbrz game.smf
 # Basic usage
 native32-emu path/to/game.smf
 
-# Load from ZIP archive (auto-extracts and loads FHUI.smf or NA32UI.smf)
+# Load from ZIP archive (menu collection or a single-game package)
 native32-emu path/to/game.zip
 
 # 2x scaling with 80% volume

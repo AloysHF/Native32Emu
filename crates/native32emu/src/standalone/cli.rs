@@ -10,7 +10,8 @@ use std::path::PathBuf;
 pub struct Cli {
     /// Path to the game file (.smf, .sgm, .ssl, or .zip)
     ///
-    /// For .zip files, loads FHUI.smf or NA32UI.smf from the archive root.
+    /// For .zip files, loads FHUI.smf/NA32UI.smf from the archive root, or the
+    /// package's single game SMF when no menu entry point exists.
     pub game_path: Option<PathBuf>,
 
     /// Integer scaling factor (1-16)

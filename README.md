@@ -26,7 +26,7 @@ Native32 is a game format developed by Sunplus for DVD player and TV chipsets (c
 - **Sprite/movie system** — animation, cloning, visibility control, depth-sorted rendering
 - **Audio playback** — finite/infinite-loop MP3 music mixed with raw 16-bit PCM sound effects (11025Hz for YUV games, 22050Hz for ARGB games), output as stereo with mono sources duplicated across both channels
 - **MPEG-1 cutscenes** — pure-Rust MPEG-1 video + MP2 audio decoder plays `SSL_PlayNext` logo/cutscene videos (no C dependency); skippable with A/B
-- **ZIP archive support** — load game packages directly from `.zip` files (auto-extracts and loads `FHUI.smf` or `NA32UI.smf`)
+- **ZIP archive support** — load full collections (`FHUI.smf`/`NA32UI.smf`) or self-contained single-game packages directly from `.zip` files
 - **Keyboard input** — configurable key remapping
 - **Physical gamepad support** — gilrs-polled controllers (D-pad/sticks, RetroPad face buttons, Select as back)
 - **Save system** — `.ssl_sav` file persistence

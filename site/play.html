@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>在线试玩 Native32 游戏 — Native32 Emulator</title>
-  <meta name="description" content="在浏览器中选择本机的 Native32 游戏文件，即可直接游玩，无需安装。由 EmulatorJS 与 Native32Emu libretro 核心驱动。">
+  <meta name="description" content="在浏览器中选择本机的 Native32 游戏 ZIP 包，即可直接游玩，无需安装。由 EmulatorJS 与 Native32Emu libretro 核心驱动。">
   <link rel="icon" type="image/png" href="res/logo.png">
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -16,49 +16,45 @@
       <span>Native32Emu</span>
     </a>
     <nav class="play-header-links">
-      <a href="index.html">返回首页</a>
+      <a href="index.html" data-i18n="nav-back">返回首页</a>
+      <button id="lang-toggle" class="lang-toggle" aria-label="Switch language">EN</button>
       <a href="https://github.com/AloysHF/Native32Emu" target="_blank" rel="noopener">GitHub</a>
     </nav>
   </header>
 
   <main class="play-main">
-    <h1 class="play-title">在线试玩 <span>Native32</span> 游戏</h1>
-    <p class="play-subtitle">
-      选择本机的游戏文件，由 <strong>EmulatorJS</strong> + Native32Emu libretro 核心在浏览器中直接运行，无需安装。
-      <br>
-      Pick a game file from your device — EmulatorJS and the Native32Emu libretro core run it right in the browser.
+    <h1 class="play-title" data-i18n="title">在线试玩 <span>Native32</span> 游戏</h1>
+    <p class="play-subtitle" data-i18n="subtitle">
+      选择本机上的游戏 ZIP 包，由 <strong>EmulatorJS</strong> + Native32Emu libretro 核心在浏览器中直接运行，无需安装。
     </p>
 
     <div class="play-stage">
       <div id="game"></div>
 
       <div id="play-status" class="play-overlay" hidden>
-        <h2>正在加载核心…</h2>
-        <p>首次启动需要下载 WebAssembly 核心。</p>
+        <h2 data-i18n="status-title">正在加载核心…</h2>
+        <p data-i18n="status-desc">首次启动需要下载 WebAssembly 核心。</p>
       </div>
 
       <div id="play-picker" class="play-overlay">
-        <h2>选择游戏文件</h2>
-        <p>
-          推荐选择游戏 ZIP 包（保留目录结构，适合多文件游戏），也可以选择单个
-          <code>.smf</code> / <code>.sgm</code> 文件。文件只在浏览器本地处理，不会被上传。
-          <br>
-          Pick a game ZIP (recommended for multi-file games) or a single <code>.smf</code> / <code>.sgm</code> file. Nothing is uploaded.
+        <h2 data-i18n="picker-title">选择游戏 ZIP 包</h2>
+        <p data-i18n="picker-desc">
+          请选择自包含的游戏 ZIP 包（保留目录结构，收录游戏依赖的场景与视频）。文件只在浏览器本地处理，不会被上传。
         </p>
         <label class="btn btn-primary">
-          选择文件
-          <input id="play-file" type="file" accept=".zip,.smf,.sgm" hidden>
+          <span data-i18n="pick-label">选择文件</span>
+          <input id="play-file" type="file" accept=".zip,application/zip" hidden>
         </label>
         <p id="play-picker-error" class="play-picker-error" hidden></p>
-        <p class="play-picker-hint">
-          也可以把文件拖进窗口。可玩的游戏见
+        <p class="play-picker-hint" data-i18n="picker-hint">
+          也可以把 ZIP 包拖进窗口。可玩的游戏见
           <a href="https://github.com/AloysHF/Native32Emu/blob/master/docs/Game-Compatibility.md" target="_blank" rel="noopener">游戏兼容列表</a>。
         </p>
       </div>
 
       <div id="play-error" class="play-overlay" hidden>
-        <h2>无法启动在线模拟器</h2>
-        <p class="play-error-text">
+        <h2 data-i18n="error-title">无法启动在线模拟器</h2>
+        <p class="play-error-text" data-i18n="error-text">
           EmulatorJS 运行时未部署（缺少 <code>data/loader.js</code>）。请通过 Pages 部署流程生成
           <code>site/data</code>，或按文档在本地准备运行时。
         </p>
@@ -66,15 +62,15 @@
     </div>
 
     <div class="play-controls">
-      <span><kbd>方向键</kbd> 移动</span>
-      <span><kbd>Z</kbd> / <kbd>X</kbd> 攻击与跳跃</span>
-      <span><kbd>Shift</kbd> 返回上一级菜单</span>
-      <span><kbd>Enter</kbd> 暂停菜单</span>
-      <span>支持手柄与手机触屏</span>
-      <button id="play-reset" class="play-reset" type="button" hidden>换一个游戏</button>
+      <span data-i18n="ctrl-move"><kbd>方向键</kbd> 移动</span>
+      <span data-i18n="ctrl-action"><kbd>Z</kbd> / <kbd>X</kbd> 攻击与跳跃</span>
+      <span data-i18n="ctrl-back"><kbd>Shift</kbd> 返回上一级菜单</span>
+      <span data-i18n="ctrl-pause"><kbd>Enter</kbd> 暂停菜单</span>
+      <span data-i18n="ctrl-gamepad">支持手柄与手机触屏</span>
+      <button id="play-reset" class="play-reset" type="button" data-i18n="reset" hidden>换一个游戏</button>
     </div>
 
-    <p class="play-note">
+    <p class="play-note" data-i18n="note">
       在线试玩使用 EmulatorJS（<a href="https://emulatorjs.org" target="_blank" rel="noopener">emulatorjs.org</a>），
       游戏数据不随本站分发，请使用自己合法持有的游戏文件。想离线游玩？从
       <a href="https://github.com/AloysHF/Native32Emu/releases" target="_blank" rel="noopener">Releases</a>
@@ -86,14 +82,85 @@
     (function () {
       'use strict';
 
+      var translations = {
+        zh: {
+          'meta-title': '在线试玩 Native32 游戏 — Native32 Emulator',
+          'meta-desc': '在浏览器中选择本机的 Native32 游戏 ZIP 包，即可直接游玩，无需安装。由 EmulatorJS 与 Native32Emu libretro 核心驱动。',
+          'nav-back': '返回首页',
+          'title': '在线试玩 <span>Native32</span> 游戏',
+          'subtitle': '选择本机上的游戏 ZIP 包，由 <strong>EmulatorJS</strong> + Native32Emu libretro 核心在浏览器中直接运行，无需安装。',
+          'status-title': '正在加载核心…',
+          'status-desc': '首次启动需要下载 WebAssembly 核心。',
+          'picker-title': '选择游戏 ZIP 包',
+          'picker-desc': '请选择自包含的游戏 ZIP 包（保留目录结构，收录游戏依赖的场景与视频）。文件只在浏览器本地处理，不会被上传。',
+          'pick-label': '选择文件',
+          'pick-invalid': '仅支持自包含的游戏 ZIP 包（.zip）。',
+          'picker-hint': '也可以把 ZIP 包拖进窗口。可玩的游戏见 <a href="https://github.com/AloysHF/Native32Emu/blob/master/docs/Game-Compatibility.md" target="_blank" rel="noopener">游戏兼容列表</a>。',
+          'error-title': '无法启动在线模拟器',
+          'error-text': 'EmulatorJS 运行时未部署（缺少 <code>data/loader.js</code>）。请通过 Pages 部署流程生成 <code>site/data</code>，或按文档在本地准备运行时。',
+          'ctrl-move': '<kbd>方向键</kbd> 移动',
+          'ctrl-action': '<kbd>Z</kbd> / <kbd>X</kbd> 攻击与跳跃',
+          'ctrl-back': '<kbd>Shift</kbd> 返回上一级菜单',
+          'ctrl-pause': '<kbd>Enter</kbd> 暂停菜单',
+          'ctrl-gamepad': '支持手柄与手机触屏',
+          'reset': '换一个游戏',
+          'note': '在线试玩使用 EmulatorJS（<a href="https://emulatorjs.org" target="_blank" rel="noopener">emulatorjs.org</a>），游戏数据不随本站分发，请使用自己合法持有的游戏文件。想离线游玩？从 <a href="https://github.com/AloysHF/Native32Emu/releases" target="_blank" rel="noopener">Releases</a> 下载独立模拟器或 RetroArch 核心。'
+        },
+        en: {
+          'meta-title': 'Play Native32 Games Online — Native32 Emulator',
+          'meta-desc': 'Play a Native32 game ZIP from your device right in the browser, no install required. Powered by EmulatorJS and the Native32Emu libretro core.',
+          'nav-back': 'Back to Home',
+          'title': 'Play <span>Native32</span> Games Online',
+          'subtitle': 'Pick a game ZIP from your device — <strong>EmulatorJS</strong> and the Native32Emu libretro core run it right in the browser.',
+          'status-title': 'Loading core…',
+          'status-desc': 'The first launch downloads the WebAssembly core.',
+          'picker-title': 'Choose a game ZIP',
+          'picker-desc': 'Pick a self-contained game ZIP that keeps the original folder layout, including the scenes and videos the game depends on. The file is processed locally in your browser and never uploaded.',
+          'pick-label': 'Choose File',
+          'pick-invalid': 'Only self-contained game ZIP packages (.zip) are supported.',
+          'picker-hint': 'You can also drop a ZIP onto the window. See the <a href="https://github.com/AloysHF/Native32Emu/blob/master/docs/Game-Compatibility.md" target="_blank" rel="noopener">game compatibility list</a> for playable titles.',
+          'error-title': 'Unable to start the online emulator',
+          'error-text': 'The EmulatorJS runtime is not deployed (missing <code>data/loader.js</code>). Generate <code>site/data</code> through the Pages workflow, or prepare the runtime locally as described in the docs.',
+          'ctrl-move': '<kbd>Arrows</kbd> Move',
+          'ctrl-action': '<kbd>Z</kbd> / <kbd>X</kbd> Attack &amp; jump',
+          'ctrl-back': '<kbd>Shift</kbd> Back to the previous menu',
+          'ctrl-pause': '<kbd>Enter</kbd> Pause menu',
+          'ctrl-gamepad': 'Gamepad and touch controls supported',
+          'reset': 'Play another game',
+          'note': 'Online play uses EmulatorJS (<a href="https://emulatorjs.org" target="_blank" rel="noopener">emulatorjs.org</a>). Game data is not distributed with this site, so use games you legally own. Prefer playing offline? Download the standalone emulator or the RetroArch core from <a href="https://github.com/AloysHF/Native32Emu/releases" target="_blank" rel="noopener">Releases</a>.'
+        }
+      };
+
+      var currentLang = localStorage.getItem('n32-lang') || (navigator.language.startsWith('zh') ? 'zh' : 'en');
+
+      function applyLang(lang) {
+        currentLang = lang;
+        localStorage.setItem('n32-lang', lang);
+        document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+
+        var t = translations[lang];
+
+        document.querySelectorAll('[data-i18n]').forEach(function (el) {
+          var key = el.getAttribute('data-i18n');
+          if (t[key] === undefined) return;
+          el.innerHTML = t[key];
+        });
+
+        if (t['meta-title']) document.title = t['meta-title'];
+        var metaDesc = document.querySelector('meta[name="description"]');
+        if (metaDesc && t['meta-desc']) metaDesc.setAttribute('content', t['meta-desc']);
+
+        var langBtn = document.getElementById('lang-toggle');
+        if (langBtn) langBtn.textContent = lang === 'zh' ? 'EN' : '中';
+      }
+
       var RUNTIME_PATH = 'data/';
-      var GAME_EXTENSIONS = /\.(zip|smf|sgm)$/i;
+      var GAME_EXTENSIONS = /\.zip$/i;
       var stage = document.querySelector('.play-stage');
       var status = document.getElementById('play-status');
       var picker = document.getElementById('play-picker');
       var pickerError = document.getElementById('play-picker-error');
       var error = document.getElementById('play-error');
-      var errorText = error.querySelector('.play-error-text');
       var fileInput = document.getElementById('play-file');
       var resetButton = document.getElementById('play-reset');
       var booted = false;
@@ -130,8 +197,6 @@
         runtime.onerror = function () {
           booted = false;
           hide(status);
-          errorText.textContent =
-            'EmulatorJS 运行时未部署（缺少 data/loader.js）。请通过 Pages 部署流程生成 site/data。';
           show(error);
         };
         document.body.appendChild(runtime);
@@ -142,7 +207,7 @@
           return;
         }
         if (!GAME_EXTENSIONS.test(file.name)) {
-          pickerError.textContent = '仅支持 .zip、.smf 或 .sgm 文件。';
+          pickerError.textContent = translations[currentLang]['pick-invalid'];
           show(pickerError);
           return;
         }
@@ -193,6 +258,15 @@
       resetButton.addEventListener('click', function () {
         window.location.reload();
       });
+
+      var langBtn = document.getElementById('lang-toggle');
+      if (langBtn) {
+        langBtn.addEventListener('click', function () {
+          applyLang(currentLang === 'zh' ? 'en' : 'zh');
+        });
+      }
+
+      applyLang(currentLang);
     })();
   </script>
 </body>

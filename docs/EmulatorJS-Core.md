@@ -79,32 +79,34 @@ release (≥ 4.2.3) and keep this `cores/` directory.
 ```
 
 `site/play.html` in this repository is a complete example: visitors pick a game
-file from their own machine (or drop it on the page) and it runs from a blob
+ZIP from their own machine (or drop it on the page) and it runs from a blob
 URL, so nothing is uploaded and the site does not need to host any game data.
 
 ### Content
 
-The core accepts the same extensions as the desktop libretro build:
-`.smf`, `.sgm` and `.zip`.
+The browser player only accepts **self-contained `.zip` packages**. The archive
+is extracted into the wasm filesystem with its directory structure preserved,
+so the game keeps the relative layout it expects:
 
-- A bare `.smf`/`.sgm` file is loaded directly.
-- A `.zip` is extracted by EmulatorJS into the wasm filesystem with its
-  directory structure preserved, then the core opens the archive's menu entry
-  point (`FHUI.smf`, falling back to `NA32UI.smf`).
-- Multi-file SSL games must be selected as a ZIP that keeps their original
-  folders, for example:
+```
+EACT/EBBLADE.smf
+EACT/EBBLADE.dat
+NA32SSL/ENGLISH/BBLADE/*.SSL
+NA32SSL/ENGLISH/LOGO/NALOGO.MPG
+```
 
-  ```
-  EACT/EBBLADE.smf
-  NA32SSL/ENGLISH/BBLADE/*.SSL
-  NA32SSL/ENGLISH/LOGO/NALOGO.MPG
-  ```
+The core then opens the archive's menu entry point (`FHUI.smf`, falling back to
+`NA32UI.smf`) when present. For a single-game package it loads the archive's
+only `.smf` (or the one matching the archive name).
 
-  A bare `.smf` from such a game will boot, but the core cannot find its
-  sibling SSL scenes and videos.
+Always hand the core a ZIP, never a bare `.smf`/`.sgm`: multi-file games load
+their SSL scenes and MPEG videos through relative paths, so a loose file boots
+without its assets. See
+[Game-File-Formats.md](Game-File-Formats.md#打包单游戏-zip) for the package
+layout.
 
 Game data is copyrighted and is neither distributed with this repository nor
-required by the site: the play page only loads files the visitor selects.
+required by the site: the play page only loads archives the visitor selects.
 
 ## Saves
 
@@ -196,7 +198,7 @@ Pages workflow then:
 2. fetches `native32-emu-emulatorjs.zip` from `nightly-build` and copies the
    `.data` files and report into `site/data/cores/`.
 
-No game data is deployed: `site/play.html` asks each visitor for a local file.
+No game data is deployed: `site/play.html` asks each visitor for a local ZIP.
 
 ## Implementation notes
 
@@ -209,4 +211,5 @@ No game data is deployed: `site/play.html` asks each visitor for a local file.
 - The wasm profile uses `panic = "abort"` to avoid unwinding overhead.
 - Local files are passed to EmulatorJS as blob URLs (File objects break its
   basename logic). `EJS_gameName` therefore keeps the original file name,
-  including the extension, so single-file content is still recognised.
+  including the `.zip` extension, so EmulatorJS still recognises the content
+  type.

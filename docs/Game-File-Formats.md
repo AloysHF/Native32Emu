@@ -18,6 +18,7 @@
   - [.ssl_sav — 存档文件](#ssl_sav--存档文件)
   - [.nes — NES ROM 镜像](#nes--nes-rom-镜像)
 - [文件关联关系](#文件关联关系)
+- [打包单游戏 ZIP](#打包单游戏-zip)
 - [模拟器支持情况](#模拟器支持情况)
 
 ---
@@ -530,6 +531,44 @@ FHUI.smf（主启动器）
       ↓
 8. 通关: BBFINISH.SSL / 游戏结束: BBOVER.SSL
 ```
+
+---
+
+## 打包单游戏 ZIP
+
+多文件游戏（如赤刃、金属风暴、风暴）依赖 `NA32SSL/` 下的 `.SSL` 场景和 `.mpg`
+视频。只分发单个 `.smf` 时，玩家很容易把依赖文件放错位置，导致启动后找不到场景。
+
+`scripts/package-games.py` 会扫描每个 `.smf` 内引用的资源路径（并递归扫描引用到的
+`.SSL`），把游戏及其依赖打包成一个自包含 ZIP，归档内保留内容根目录的相对位置：
+
+```bash
+# 默认处理 tmp/native32_game，输出到 tmp/native32_game/dist
+python scripts/package-games.py
+
+# 只打包指定游戏并查看内容，不写文件
+python scripts/package-games.py --only "EPOP/EBBLADE.smf" --dry-run -v
+```
+
+产物示例：
+
+```
+dist/EACT/EBBLADE.zip
+  EACT/EBBLADE.smf
+  EACT/EBBLADE.dat
+  NA32SSL/ENGLISH/BBLADE/*.SSL
+  NA32SSL/ENGLISH/LOGO/NALOGO.MPG
+```
+
+规则：
+
+- 包名为 SMF 文件名（`EBBLADE.smf` → `EBBLADE.zip`），按原分类目录输出，避免
+  `EACT/EBBLADE` 与 `EPOP/EBBLADE` 同名冲突。
+- 根目录的 `FHUI.smf` 是前端菜单而非单款游戏，默认跳过。
+- 运行时动态拼接的文件名（例如 `/MSPLAY` + `10.SSL`）无法静态枚举，因此会整目录
+  收进其所在资源目录；`.ssl_sav` 存档和 `Thumbs.db` 不会打包。
+- 归档内没有 `FHUI.smf`/`NA32UI.smf` 时，模拟器会把包内唯一的 `.smf`（或与
+  ZIP 同名的 `.smf`）作为入口直接启动。
 
 ---
 
