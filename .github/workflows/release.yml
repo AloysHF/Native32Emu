@@ -331,9 +331,49 @@ jobs:
           name: native32-emu-webos
           path: native32-emu-webos-libretro.tar.gz
 
+  build-emulatorjs:
+    name: Build EmulatorJS core
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-emscripten
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+
+      - name: Cache Rust artifacts
+        uses: swatinem/rust-cache@v2
+        with:
+          key: emulatorjs
+
+      - name: Install packaging tools
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full zip
+
+      - name: Build wasm staticlib
+        run: cargo build -p native32emu-libretro --target wasm32-unknown-emscripten --profile wasm-release
+
+      - name: Build EmulatorJS core bundles
+        run: scripts/build-emulatorjs-core.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: native32-emu-emulatorjs
+          path: |
+            out/native32-emu-emulatorjs.zip
+            out/*.data
+            out/native32emu.json
+
   release:
     name: Create Release
-    needs: [build, build-android, build-ios, build-webos]
+    needs: [build, build-android, build-ios, build-webos, build-emulatorjs]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -380,6 +420,12 @@ jobs:
             ### webOS libretro core (for RetroArch on LG webOS TVs)
             - `native32-emu-webos-libretro.tar.gz` contains
               `native32emu_libretro.so` for the webOS ARMv7 ABI.
+
+            ### EmulatorJS core (for the browser)
+            - `native32-emu-emulatorjs.zip` contains a drop-in
+              `cores/native32emu-wasm.data`, `cores/native32emu-legacy-wasm.data`
+              and `cores/reports/native32emu.json` for EmulatorJS's `data/` directory.
+            - The individual `.data` files are attached for manual installation.
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

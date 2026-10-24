@@ -34,6 +34,7 @@ Native32 is a game format developed by Sunplus for DVD player and TV chipsets (c
 - **CLI controls** — scaling, fullscreen, volume adjustment
 - **Cheat system** — modify VM variables, sprite properties, and frame state at runtime; includes debug logging to discover cheat targets
 - **RetroArch integration** — libretro core for use with RetroArch frontend
+- **Browser support** — WebAssembly build packaged as a drop-in EmulatorJS core
 
 ## Usage
 
@@ -63,6 +64,29 @@ Both analog sticks also control movement, with a 50% deadzone.
 See the [RetroArch Core](docs/RetroArch-Core.md) guide for installation,
 supported platforms and features, RetroPad mapping, core options, and cheats.
 
+### Browser Mode (EmulatorJS)
+
+Play in any modern browser with [EmulatorJS](https://emulatorjs.org). Download
+`native32-emu-emulatorjs.zip` from the
+[Releases](https://github.com/AloysHF/Native32Emu/releases) page and copy its
+`cores/` folder into your EmulatorJS `data/` directory, then select the core
+from a page:
+
+```html
+<script>
+  EJS_player = "#game";
+  EJS_core = "native32emu";
+  EJS_gameUrl = "games/your-game.zip";
+  EJS_pathtodata = "data/";
+</script>
+<script src="data/loader.js"></script>
+```
+
+The demo in this repository (`site/play.html`) loads 赤刃 (Bloody Blade) when
+the game package is deployed, and otherwise lets visitors pick a local game
+file. See the [EmulatorJS Core](docs/EmulatorJS-Core.md) guide for the bundle
+layout, content packaging, saves, core options, and local builds.
+
 ## Building
 
 Requires [Rust](https://www.rust-lang.org/tools/install) (stable).
@@ -91,6 +115,20 @@ RetroArch's `cores/` directory.
 
 For Android cross-compilation, see [Android Libretro Core](docs/Android-Libretro-Core.md).
 For iOS, see [iOS Libretro Core](docs/iOS-Libretro-Core.md).
+
+### EmulatorJS Core (for the browser)
+
+Builds require an activated emsdk 3.1.74 plus `7z`, `zip` and `git` (Linux,
+macOS or WSL):
+
+```bash
+rustup target add wasm32-unknown-emscripten
+cargo build -p native32emu-libretro --target wasm32-unknown-emscripten --profile wasm-release
+scripts/build-emulatorjs-core.sh
+```
+
+Artifacts land in `out/emulatorjs/` and `out/native32-emu-emulatorjs.zip`. See
+[EmulatorJS Core](docs/EmulatorJS-Core.md) for the full pipeline.
 
 ## Testing
 
@@ -141,10 +179,10 @@ crates/
 │           ├── cli.rs           # Command-line argument parsing
 │           ├── gamepad.rs       # Physical gamepad polling via gilrs
 │           └── gamepad_overlay.rs  # On-screen virtual gamepad overlay
-└── native32emu-libretro/        # libretro cdylib (-> native32emu_libretro.{dll,so,dylib})
+└── native32emu-libretro/        # libretro cdylib + EmulatorJS wasm staticlib
     ├── native32emu_libretro.info   # RetroArch core metadata
     └── src/
-        ├── lib.rs               # cdylib crate root
+        ├── lib.rs               # cdylib/staticlib crate root
         └── libretro/
             ├── api.rs           # Exported libretro functions (retro_init, retro_run, etc.)
             ├── callbacks.rs     # Callback management for video/audio/input

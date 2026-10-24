@@ -12,7 +12,9 @@ license.workspace = true
 # named `native32emu` (matching CORENAME in .gitlab-ci.yml). For local RetroArch
 # installs, rename the produced cdylib to native32emu_libretro.<ext> manually.
 name = "native32emu"
-crate-type = ["cdylib"]
+# `staticlib` is what the EmulatorJS build links into its RetroArch fork for
+# the wasm target; desktop builds keep using the cdylib.
+crate-type = ["cdylib", "staticlib"]
 path = "src/lib.rs"
 
 [dependencies]

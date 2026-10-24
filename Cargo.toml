@@ -38,3 +38,9 @@ flate2 = "1"              # DEFLATE decompression for packed Native32 assets
 opt-level = 3
 lto = true
 strip = true
+
+# Used by `scripts/build-emulatorjs-core.sh` for wasm32-unknown-emscripten.
+# Unwinding is unsupported in the browser build, so abort on panic.
+[profile.wasm-release]
+inherits = "release"
+panic = "abort"

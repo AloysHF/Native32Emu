@@ -172,6 +172,10 @@ pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
                 log::info!("Game loaded: {} ({}x{})", path, width, height);
                 // Apply the user's current core option selections.
                 apply_core_options(&mut emu);
+                // In the browser the content lives in a throwaway MEMFS tree;
+                // write saves to the frontend's persistent (IndexedDB) mount.
+                #[cfg(target_os = "emscripten")]
+                emu.set_save_directory(callbacks::save_directory().map(std::path::PathBuf::from));
                 EMULATOR = Some(emu);
                 true
             }

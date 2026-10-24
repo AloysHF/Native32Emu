@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在线体验《赤刃》 — Native32 Emulator</title>
+  <meta name="description" content="在浏览器中直接游玩 Native32 经典动作游戏《赤刃》（Bloody Blade），由 EmulatorJS 与 Native32Emu libretro 核心驱动。">
+  <link rel="icon" type="image/png" href="res/logo.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="play-page">
+
+  <header class="play-header">
+    <a href="index.html" class="play-brand">
+      <img src="res/logo.png" alt="Native32Emu">
+      <span>Native32Emu</span>
+    </a>
+    <nav class="play-header-links">
+      <a href="index.html">返回首页</a>
+      <a href="https://github.com/AloysHF/Native32Emu" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="play-main">
+    <h1 class="play-title">赤刃 <span>Bloody Blade</span></h1>
+    <p class="play-subtitle">
+      由 <strong>EmulatorJS</strong> + Native32Emu libretro 核心驱动，无需安装即可游玩。
+      <br>
+      Powered by EmulatorJS and the Native32Emu libretro core — no install required.
+    </p>
+
+    <div class="play-stage">
+      <div id="game"></div>
+
+      <div id="play-status" class="play-overlay">
+        <h2>正在准备游戏…</h2>
+        <p>首次加载需要下载 WebAssembly 核心与游戏数据。</p>
+      </div>
+
+      <div id="play-picker" class="play-overlay" hidden>
+        <h2>选择游戏包</h2>
+        <p>
+          当前站点未部署在线游戏包。你可以选择本机的 Native32 游戏 ZIP，文件只会在浏览器中运行，不会被上传。
+          <br>
+          No online game package is deployed. Pick a local Native32 ZIP — it is processed entirely in your browser.
+        </p>
+        <label class="btn btn-primary">
+          选择游戏 ZIP
+          <input id="play-file" type="file" accept=".zip,.smf,.sgm" hidden>
+        </label>
+      </div>
+
+      <div id="play-error" class="play-overlay" hidden>
+        <h2>无法启动在线模拟器</h2>
+        <p class="play-error-text">
+          EmulatorJS 运行时未部署（缺少 <code>data/loader.js</code>）。请通过 Pages 部署流程生成
+          <code>site/data</code>，或按文档在本地准备运行时。
+        </p>
+      </div>
+    </div>
+
+    <div class="play-controls">
+      <span><kbd>方向键</kbd> 移动</span>
+      <span><kbd>Z</kbd> / <kbd>X</kbd> 攻击与跳跃</span>
+      <span><kbd>Shift</kbd> 返回上一级菜单</span>
+      <span><kbd>Enter</kbd> 暂停菜单</span>
+      <span>支持手柄与手机触屏</span>
+    </div>
+
+    <p class="play-note">
+      在线体验使用 EmulatorJS（<a href="https://emulatorjs.org" target="_blank" rel="noopener">emulatorjs.org</a>）。
+      想离线游玩？从 <a href="https://github.com/AloysHF/Native32Emu/releases" target="_blank" rel="noopener">Releases</a>
+      下载独立模拟器或 RetroArch 核心。
+    </p>
+  </main>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var RUNTIME_PATH = 'data/';
+      var DEMO_GAME = 'games/ebblade.zip';
+      var status = document.getElementById('play-status');
+      var picker = document.getElementById('play-picker');
+      var error = document.getElementById('play-error');
+      var errorText = error.querySelector('.play-error-text');
+      var fileInput = document.getElementById('play-file');
+      var booted = false;
+
+      function show(element) { element.hidden = false; }
+      function hide(element) { element.hidden = true; }
+
+      function boot(gameUrl, gameName) {
+        if (booted) {
+          return;
+        }
+        booted = true;
+        hide(status);
+        hide(picker);
+        hide(error);
+
+        window.EJS_player = '#game';
+        window.EJS_core = 'native32emu';
+        window.EJS_gameUrl = gameUrl;
+        window.EJS_gameName = gameName || 'Bloody Blade';
+        window.EJS_pathtodata = RUNTIME_PATH;
+        window.EJS_startOnLoaded = false;
+        window.EJS_backgroundColor = '#0a0a0a';
+
+        var runtime = document.createElement('script');
+        runtime.src = RUNTIME_PATH + 'loader.js';
+        runtime.onerror = function () {
+          booted = false;
+          errorText.textContent =
+            'EmulatorJS 运行时未部署（缺少 data/loader.js）。请通过 Pages 部署流程生成 site/data。';
+          show(error);
+        };
+        document.body.appendChild(runtime);
+      }
+
+      function offerFile() {
+        hide(status);
+        show(picker);
+      }
+
+      fetch(DEMO_GAME, { method: 'HEAD', cache: 'no-store' })
+        .then(function (response) {
+          if (response.ok) {
+            boot(DEMO_GAME);
+          } else {
+            offerFile();
+          }
+        })
+        .catch(offerFile);
+
+      fileInput.addEventListener('change', function () {
+        var file = fileInput.files && fileInput.files[0];
+        if (!file) {
+          return;
+        }
+        boot(URL.createObjectURL(file), file.name.replace(/\.(zip|smf|sgm)$/i, ''));
+      });
+    })();
+  </script>
+</body>
+</html>

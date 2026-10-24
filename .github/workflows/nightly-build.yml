@@ -358,9 +358,50 @@ jobs:
           path: native32-emu-webos-libretro.tar.gz
           retention-days: 7
 
+  build-emulatorjs:
+    name: Build EmulatorJS core
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-emscripten
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+
+      - name: Cache Rust artifacts
+        uses: swatinem/rust-cache@v2
+        with:
+          key: nightly-emulatorjs
+
+      - name: Install packaging tools
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full zip
+
+      - name: Build wasm staticlib
+        run: cargo build -p native32emu-libretro --target wasm32-unknown-emscripten --profile wasm-release
+
+      - name: Build EmulatorJS core bundles
+        run: scripts/build-emulatorjs-core.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: native32-emu-emulatorjs
+          path: |
+            out/native32-emu-emulatorjs.zip
+            out/*.data
+            out/native32emu.json
+          retention-days: 7
+
   release:
     name: Publish Nightly Release
-    needs: [build, build-android, build-ios, build-webos]
+    needs: [build, build-android, build-ios, build-webos, build-emulatorjs]
     runs-on: ubuntu-latest
     steps:
       - name: Compute version metadata
@@ -382,7 +423,8 @@ jobs:
           mkdir -p release-assets
           find artifacts -type f \( \
             -name '*.tar.gz' -o \
-            -name '*.zip' \
+            -name '*.zip' -o \
+            -name '*.data' \
           \) -exec cp {} release-assets/ \;
           ls -la release-assets
 
@@ -410,6 +452,9 @@ jobs:
           - Android libretro core (\`native32-emu-android-libretro.tar.gz\`) with arm64-v8a, armeabi-v7a, x86 and x86_64 ABIs
           - iOS libretro core (\`native32-emu-ios-libretro.tar.gz\`) for real devices (arm64) and simulators
           - webOS libretro core (\`native32-emu-webos-libretro.tar.gz\`) for ARMv7 TVs
+          - EmulatorJS core (\`native32-emu-emulatorjs.zip\`): \`native32emu-wasm.data\`,
+            \`native32emu-legacy-wasm.data\` and \`cores/reports/native32emu.json\`, ready to drop
+            into EmulatorJS's \`data/\` directory (individual \`.data\` files are attached too)
 
           ⚠️ Unsigned build: Windows SmartScreen / macOS Gatekeeper may block on first launch.
           EOF
