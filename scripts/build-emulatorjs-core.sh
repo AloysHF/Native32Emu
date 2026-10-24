@@ -69,6 +69,13 @@ EMULATORJS_DIR="$WORK_DIR/EmulatorJS"
 BUILD_DIR="$RETROARCH_DIR/emulatorjs"
 
 fetch_retroarch() {
+    # A cached workspace can hold the RetroArch tree without .git (rust-cache
+    # stores target/ but not the dot-directories). Reusing it makes checkout
+    # fail on the leftover untracked files, so start from a clean directory.
+    if [[ -e "$RETROARCH_DIR" && ! -d "$RETROARCH_DIR/.git" ]]; then
+        echo "==> Removing stale RetroArch workspace (missing .git)"
+        rm -rf "$RETROARCH_DIR"
+    fi
     if [[ ! -d "$RETROARCH_DIR/.git" ]]; then
         git init "$RETROARCH_DIR"
         git -C "$RETROARCH_DIR" remote add origin "$RETROARCH_REPO"
@@ -76,7 +83,7 @@ fetch_retroarch() {
     if ! git -C "$RETROARCH_DIR" cat-file -e "$RETROARCH_REF^{commit}" 2>/dev/null; then
         git -C "$RETROARCH_DIR" fetch --depth 1 origin "$RETROARCH_REF"
     fi
-    git -C "$RETROARCH_DIR" checkout --detach "$RETROARCH_REF"
+    git -C "$RETROARCH_DIR" checkout --detach --force "$RETROARCH_REF"
 }
 
 echo "==> Fetching EmulatorJS/RetroArch @ $RETROARCH_REF"

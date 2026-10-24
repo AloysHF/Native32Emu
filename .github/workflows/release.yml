@@ -368,7 +368,11 @@ jobs:
           -Zbuild-std=std,panic_abort
 
       - name: Build EmulatorJS core bundles
-        run: scripts/build-emulatorjs-core.sh
+        run: |
+          # Keep the RetroArch build tree out of target/: rust-cache archives
+          # target/ and restores it without .git, which breaks the checkout.
+          rm -rf target/emulatorjs-build
+          scripts/build-emulatorjs-core.sh --work-dir "$RUNNER_TEMP/emulatorjs-build"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
