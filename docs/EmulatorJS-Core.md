@@ -15,7 +15,9 @@ Every nightly and tagged release publishes:
 | `native32-emu-emulatorjs.zip` | Complete drop-in bundle (recommended) |
 | `native32emu-wasm.data` | WebGL2/WebAssembly core bundle |
 | `native32emu-legacy-wasm.data` | WebGL1-compatible fallback bundle |
-| `native32emu.json` | Core report (`cores/reports/`) with build metadata |
+
+The core report (`native32emu.json`, build metadata) ships inside the ZIP as
+`cores/reports/native32emu.json` rather than as a separate release asset.
 
 The bundle is laid out like this:
 
@@ -44,12 +46,20 @@ data/
 ├── loader.js
 ├── emulator.min.js
 ├── emulator.min.css
-├── …                      # rest of the EmulatorJS runtime
+├── compression/
+│   ├── extract7z.js       # extracts the core .data archive
+│   └── extractzip.js      # extracts ZIP game files
+├── localization/          # optional, e.g. zh-CN.json
 └── cores/
     ├── native32emu-wasm.data
     ├── native32emu-legacy-wasm.data
     └── reports/native32emu.json
 ```
+
+`emulator.min.zip` only contains `emulator.min.js` and `emulator.min.css`;
+the `compression/` and `localization/` files are loaded on demand from the
+same EmulatorJS data directory. Without `extract7z.js` the core download ends
+in a "Network Error".
 
 To upgrade the runtime, replace the runtime files with a newer EmulatorJS
 release (≥ 4.2.3) and keep this `cores/` directory.

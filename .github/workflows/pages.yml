@@ -35,11 +35,17 @@ jobs:
         env:
           EJS_VERSION: "4.2.3"
         run: |
-          mkdir -p site/data
-          curl -fsSL "https://cdn.emulatorjs.org/${EJS_VERSION}/data/loader.js" -o site/data/loader.js
-          curl -fsSL "https://cdn.emulatorjs.org/${EJS_VERSION}/data/emulator.min.zip" \
-            -o "$RUNNER_TEMP/emulatorjs-runtime.zip"
+          EJS_DATA="https://cdn.emulatorjs.org/${EJS_VERSION}/data"
+          mkdir -p site/data/compression site/data/localization
+          curl -fsSL "$EJS_DATA/loader.js" -o site/data/loader.js
+          curl -fsSL "$EJS_DATA/emulator.min.zip" -o "$RUNNER_TEMP/emulatorjs-runtime.zip"
           unzip -oq "$RUNNER_TEMP/emulatorjs-runtime.zip" -d site/data
+          # emulator.min.zip only carries the JS/CSS bundles. EmulatorJS loads
+          # these on demand, so without them the core .data archive and any
+          # ZIP game fail with "Network Error".
+          curl -fsSL "$EJS_DATA/compression/extract7z.js" -o site/data/compression/extract7z.js
+          curl -fsSL "$EJS_DATA/compression/extractzip.js" -o site/data/compression/extractzip.js
+          curl -fsSL "$EJS_DATA/localization/zh-CN.json" -o site/data/localization/zh-CN.json
 
       - name: Fetch Native32Emu EmulatorJS core
         env:
