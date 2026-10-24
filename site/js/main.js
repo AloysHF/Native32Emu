@@ -129,12 +129,19 @@
       'nav-games': '游戏库',
       'nav-arch': '技术架构',
       'nav-quickstart': '快速开始',
+      'nav-play': '在线体验',
       // hero
       'hero-subtitle': '让尘封的芯片游戏重获新生',
       'hero-desc': '用 Rust 编写的 Native32 游戏模拟器，完整支持 Sunplus DVD 芯片上的 84 款经典游戏',
       'hero-download': '下载',
       'hero-github': '查看源码',
+      'hero-play': '在线试玩',
       'hero-scroll': '向下滚动探索',
+      // play online
+      'play-badge': '无需安装 · 浏览器直接运行',
+      'play-title': '在线试玩 Native32 游戏',
+      'play-desc': '选择本机的游戏 ZIP 或 SMF 文件，即可在浏览器中运行任意 Native32 游戏，支持键盘、手柄和手机触屏。',
+      'play-cta': '开始试玩',
       // about
       'about-title': '什么是 Native32？',
       'about-p1': 'Native32 是 <strong>Sunplus</strong> 公司为 DVD 播放器和电视芯片（约 2005–2011 年）开发的游戏格式。游戏运行在芯片内置的栈式虚拟机上，使用类 ActionScript 的字节码，配合光栅图形和 MP3/MPEG-1 多媒体。',
@@ -220,12 +227,19 @@
       'nav-games': 'Games',
       'nav-arch': 'Architecture',
       'nav-quickstart': 'Quick Start',
+      'nav-play': 'Play Online',
       // hero
       'hero-subtitle': 'Bring forgotten chip games back to life',
       'hero-desc': 'A Native32 game emulator written in Rust, fully supporting 84 classic games from Sunplus DVD chips',
       'hero-download': 'Download',
       'hero-github': 'View Source',
+      'hero-play': 'Play Online',
       'hero-scroll': 'Scroll to explore',
+      // play online
+      'play-badge': 'No install · runs in your browser',
+      'play-title': 'Play Native32 Games Online',
+      'play-desc': 'Pick a game ZIP or SMF file from your device and play any Native32 game in the browser, with keyboard, gamepad, and touch controls.',
+      'play-cta': 'Start Playing',
       // about
       'about-title': 'What is Native32?',
       'about-p1': 'Native32 is a game format developed by <strong>Sunplus</strong> for DVD player and TV chipsets (circa 2005–2011). Games run on a stack-based virtual machine built into the chip, using ActionScript-like bytecode with raster graphics and MP3/MPEG-1 multimedia.',

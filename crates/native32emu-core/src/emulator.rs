@@ -69,6 +69,9 @@ pub struct Emulator {
     /// Temporary directory handle for ZIP extraction. When this field is
     /// dropped (e.g. when the Emulator is dropped), the directory is deleted.
     _temp_dir: Option<tempfile::TempDir>,
+    /// Frontend-provided save directory (e.g. RetroArch/EmulatorJS
+    /// `/data/saves`). When `None`, saves live next to the content file.
+    save_dir: Option<PathBuf>,
 }
 
 impl Emulator {
@@ -126,7 +129,18 @@ impl Emulator {
             return_stack: Vec::new(),
             auto_skip_cutscenes: false,
             _temp_dir,
+            save_dir: None,
         })
+    }
+
+    /// Override where `.ssl_sav` files are written.
+    ///
+    /// Frontends with a persistent save directory (RetroArch's
+    /// `RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY`, which EmulatorJS points at an
+    /// IndexedDB-backed `/data/saves`) should call this right after loading.
+    pub fn set_save_directory(&mut self, dir: Option<PathBuf>) {
+        self.save_dir = dir;
+        self.save_manager = SaveManager::new_in(&self.filename, self.save_dir.as_deref());
     }
 
     /// Get the game resolution.
@@ -191,7 +205,7 @@ impl Emulator {
         self.filename = path;
         self.reader = reader;
         self.audio = AudioEngine::new(self.reader.colorspace, (self.audio.volume * 100.0) as u32);
-        self.save_manager = SaveManager::new(&self.filename);
+        self.save_manager = SaveManager::new_in(&self.filename, self.save_dir.as_deref());
 
         Ok(())
     }
@@ -638,7 +652,7 @@ impl Emulator {
 
         // Consecutive SSL scenes belong to one game and share its save data.
         if replace_save_manager {
-            self.save_manager = SaveManager::new(&fullpath);
+            self.save_manager = SaveManager::new_in(&fullpath, self.save_dir.as_deref());
         }
         self.content_root = new_content_root;
         if let Some(frame) = return_frame {
@@ -784,7 +798,7 @@ impl Emulator {
         self.audio.stop_all();
         self.filename = content_path;
         self.reader = reader;
-        self.save_manager = SaveManager::new(&self.filename);
+        self.save_manager = SaveManager::new_in(&self.filename, self.save_dir.as_deref());
         self.frame_player = state.frame_player;
         self.sprites = state.sprites;
         self.vm.vars = state.vm_vars;

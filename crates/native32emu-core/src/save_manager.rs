@@ -2,13 +2,47 @@
 
 use std::path::{Path, PathBuf};
 
+/// Build a flat, filesystem-safe save name from a content path.
+fn save_file_stem(game_path: &Path) -> String {
+    game_path
+        .components()
+        .filter_map(|component| match component {
+            std::path::Component::Normal(part) => Some(part.to_string_lossy().into_owned()),
+            _ => None,
+        })
+        .map(|part| {
+            part.chars()
+                .map(|c| {
+                    if c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_') {
+                        c
+                    } else {
+                        '_'
+                    }
+                })
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("_")
+}
+
 pub struct SaveManager {
     save_path: PathBuf,
 }
 
 impl SaveManager {
     pub fn new(game_path: &Path) -> Self {
-        let save_path = PathBuf::from(format!("{}.ssl_sav", game_path.display()));
+        Self::new_in(game_path, None)
+    }
+
+    /// Create a save manager, optionally placing save data in a frontend-owned
+    /// directory (e.g. RetroArch/EmulatorJS `/data/saves`, which is persisted in
+    /// the browser). The file name is derived from the full content path so
+    /// scenes with identical names stay distinct.
+    pub fn new_in(game_path: &Path, save_dir: Option<&Path>) -> Self {
+        let save_path = match save_dir {
+            Some(dir) => dir.join(format!("{}.ssl_sav", save_file_stem(game_path))),
+            None => PathBuf::from(format!("{}.ssl_sav", game_path.display())),
+        };
         Self { save_path }
     }
 
@@ -55,6 +89,30 @@ mod tests {
         let game_path = Path::new("/some/path/game.ssl");
         let sm = SaveManager::new(game_path);
         assert_eq!(sm.save_path, PathBuf::from("/some/path/game.ssl.ssl_sav"));
+    }
+
+    #[test]
+    fn test_save_path_in_directory_is_flattened() {
+        let game_path = Path::new("/NA32SSL/ENGLISH/BBLADE/BBPLAY10.SSL");
+        let sm = SaveManager::new_in(game_path, Some(Path::new("/data/saves")));
+        assert_eq!(
+            sm.save_path,
+            PathBuf::from("/data/saves/NA32SSL_ENGLISH_BBLADE_BBPLAY10.SSL.ssl_sav")
+        );
+    }
+
+    #[test]
+    fn test_save_roundtrip_in_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        std::fs::create_dir_all(&saves).unwrap();
+        let game_path = dir.path().join("game.smf");
+        std::fs::write(&game_path, b"fake").unwrap();
+
+        let sm = SaveManager::new_in(&game_path, Some(&saves));
+        assert!(sm.save("progress"));
+        assert_eq!(sm.load(), Some("progress".to_string()));
+        assert!(saves.read_dir().unwrap().next().is_some());
     }
 
     #[test]

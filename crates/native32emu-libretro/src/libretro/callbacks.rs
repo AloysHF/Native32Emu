@@ -76,7 +76,13 @@ pub fn set_input_state(cb: retro_input_state_t) {
     }
 }
 
-/// Get log interface from frontend
+/// Get log interface from frontend.
+///
+/// Skipped on Emscripten: libretro's log callback is C-variadic, while our
+/// `retro_log_printf_t` binding is not, and wasm has no C varargs. Calling the
+/// frontend callback through the mismatched function type traps, so wasm builds
+/// log to stderr (the browser console) instead.
+#[cfg(not(target_os = "emscripten"))]
 pub fn init_log() {
     unsafe {
         if let Some(env) = CALLBACKS.environment {
@@ -92,17 +98,24 @@ pub fn init_log() {
     }
 }
 
-/// Fallback log function that writes to stderr
+#[cfg(target_os = "emscripten")]
+pub fn init_log() {}
+
+/// Part of the `retro_log_callback` initializer on desktop builds only.
+#[cfg(not(target_os = "emscripten"))]
 unsafe extern "C" fn fallback_log(level: retro_log_level, fmt: *const std::ffi::c_char) {
-    let level_str = match level {
+    // Simple fallback: just print the level
+    eprintln!("[Native32Emu] {}", level_name(level));
+    let _ = fmt;
+}
+
+fn level_name(level: retro_log_level) -> &'static str {
+    match level {
         retro_log_level::RETRO_LOG_DEBUG => "DEBUG",
         retro_log_level::RETRO_LOG_INFO => "INFO",
         retro_log_level::RETRO_LOG_WARN => "WARN",
         retro_log_level::RETRO_LOG_ERROR => "ERROR",
-    };
-    // Simple fallback: just print the level
-    eprintln!("[Native32Emu] {}", level_str);
-    let _ = fmt;
+    }
 }
 
 /// Call environment callback
@@ -174,6 +187,36 @@ pub fn log_message(level: retro_log_level, msg: &str) {
             let escaped = msg.replace('%', "%%");
             let c_msg = std::ffi::CString::new(escaped).unwrap_or_default();
             log_fn(level, c_msg.as_ptr());
+            return;
+        }
+
+        #[cfg(target_os = "emscripten")]
+        eprintln!("[Native32Emu] {}: {}", level_name(level), msg);
+
+        #[cfg(not(target_os = "emscripten"))]
+        let _ = level;
+    }
+}
+
+/// Ask the frontend where it wants save data stored.
+///
+/// RetroArch/EmulatorJS answer with `/data/saves`, an IndexedDB-backed mount,
+/// so files written there survive a page reload.
+pub fn save_directory() -> Option<String> {
+    unsafe {
+        let mut dir: *const std::ffi::c_char = std::ptr::null();
+        let ok = environment(
+            super::constants::RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY,
+            &mut dir as *mut _ as *mut c_void,
+        );
+        if ok && !dir.is_null() {
+            std::ffi::CStr::from_ptr(dir)
+                .to_str()
+                .ok()
+                .filter(|dir| !dir.is_empty())
+                .map(str::to_owned)
+        } else {
+            None
         }
     }
 }
