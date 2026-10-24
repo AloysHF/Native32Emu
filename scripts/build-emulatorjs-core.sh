@@ -10,8 +10,13 @@
 #
 # Requirements: an activated emsdk (`emmake` in PATH), p7zip (`7z`), git, and a
 # Rust staticlib built with:
-#   cargo build -p native32emu-libretro --target wasm32-unknown-emscripten \
-#     --profile wasm-release
+#   cargo +nightly build -p native32emu-libretro --target wasm32-unknown-emscripten \
+#     --profile wasm-release -Zbuild-std=std,panic_abort
+#
+# The nightly build-std is deliberate: Rust's prebuilt emscripten stdlib carries
+# wasm exception handling, and Binaryen's Asyncify pass (which the fork forces on
+# for OpenAL audio) aborts on EH instructions. Rebuilding std with panic=abort
+# produces an EH-free module.
 #
 # Usage:
 #   scripts/build-emulatorjs-core.sh [--core <libnative32emu.a>] [--out <dir>]
@@ -190,9 +195,10 @@ rm -f "$ZIP"
 )
 
 # Flat copies for release pages / quick downloads.
-cp "$OUT_DIR/cores/${CORE_NAME}-wasm.data" "$OUT_DIR/"
-cp "$OUT_DIR/cores/${CORE_NAME}-legacy-wasm.data" "$OUT_DIR/"
-cp "$OUT_DIR/cores/reports/${CORE_NAME}.json" "$OUT_DIR/"
+FLAT_DIR="$(cd "$OUT_DIR/.." && pwd)"
+cp "$OUT_DIR/cores/${CORE_NAME}-wasm.data" "$FLAT_DIR/"
+cp "$OUT_DIR/cores/${CORE_NAME}-legacy-wasm.data" "$FLAT_DIR/"
+cp "$OUT_DIR/cores/reports/${CORE_NAME}.json" "$FLAT_DIR/"
 
 echo "==> Done"
 echo "    bundle:  $(cd "$(dirname "$ZIP")" && pwd)/$(basename "$ZIP")"

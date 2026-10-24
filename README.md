@@ -123,12 +123,14 @@ Builds require an activated emsdk 3.1.74 plus `7z`, `zip` and `git` (Linux,
 macOS or WSL):
 
 ```bash
-rustup target add wasm32-unknown-emscripten
-cargo build -p native32emu-libretro --target wasm32-unknown-emscripten --profile wasm-release
+rustup toolchain install nightly --component rust-src
+rustup +nightly target add wasm32-unknown-emscripten
+cargo +nightly build -p native32emu-libretro --target wasm32-unknown-emscripten \
+  --profile wasm-release -Zbuild-std=std,panic_abort
 scripts/build-emulatorjs-core.sh
 ```
 
-Artifacts land in `out/emulatorjs/` and `out/native32-emu-emulatorjs.zip`. See
+Artifacts land in `out/emulatorjs/`, `out/*.data` and `out/native32-emu-emulatorjs.zip`. See
 [EmulatorJS Core](docs/EmulatorJS-Core.md) for the full pipeline.
 
 ## Testing

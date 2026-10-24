@@ -338,10 +338,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # -Zbuild-std needs nightly. Rebuilding std with panic=abort keeps wasm
+      # exception handling out of the module: Binaryen's Asyncify pass, which
+      # the fork forces on for OpenAL audio, aborts on EH instructions.
       - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: nightly-2026-09-10
           targets: wasm32-unknown-emscripten
+          components: rust-src
 
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v14
@@ -357,7 +362,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y p7zip-full zip
 
       - name: Build wasm staticlib
-        run: cargo build -p native32emu-libretro --target wasm32-unknown-emscripten --profile wasm-release
+        run: >
+          cargo build -p native32emu-libretro
+          --target wasm32-unknown-emscripten --profile wasm-release
+          -Zbuild-std=std,panic_abort
 
       - name: Build EmulatorJS core bundles
         run: scripts/build-emulatorjs-core.sh
@@ -369,7 +377,6 @@ jobs:
           path: |
             out/native32-emu-emulatorjs.zip
             out/*.data
-            out/native32emu.json
 
   release:
     name: Create Release

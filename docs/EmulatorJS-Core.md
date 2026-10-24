@@ -132,18 +132,26 @@ Values are re-read when the frontend signals a change
 Requirements:
 
 - an activated [emsdk](https://emscripten.org) 3.1.74 (`emmake` in `PATH`)
+- the Rust `nightly` toolchain with the `rust-src` component
 - the Rust target `wasm32-unknown-emscripten`
 - `7z` (p7zip), `zip`, `git`
 
 ```bash
-rustup target add wasm32-unknown-emscripten
+rustup toolchain install nightly --component rust-src
+rustup +nightly target add wasm32-unknown-emscripten
 source /path/to/emsdk/emsdk_env.sh          # Linux/macOS/WSL
 
-cargo build -p native32emu-libretro \
-  --target wasm32-unknown-emscripten --profile wasm-release
+cargo +nightly build -p native32emu-libretro \
+  --target wasm32-unknown-emscripten --profile wasm-release \
+  -Zbuild-std=std,panic_abort
 
 scripts/build-emulatorjs-core.sh
 ```
+
+`-Zbuild-std=std,panic_abort` rebuilds std with `panic=abort`. The prebuilt
+emscripten stdlib contains wasm exception-handling instructions, and the
+Asyncify pass that EmulatorJS's build forces on (for OpenAL audio) crashes on
+them; the abort build emits none.
 
 The build script:
 
