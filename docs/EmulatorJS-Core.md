@@ -114,6 +114,14 @@ layout.
 Game data is copyrighted and is neither distributed with this repository nor
 required by the site: the play page only loads archives the visitor selects.
 
+## Restart
+
+EmulatorJS's restart button (RetroArch reset) reloads the content that started
+the session: the archive or loose file the player opened, or the game chosen
+from the package menu. It does not just reset the state of the SSL scene that
+is currently playing, and it does not send the player back to the package menu.
+Persisted `.ssl_sav` progress is kept, like on a fresh launch.
+
 ## Saves
 
 EmulatorJS mounts `/data/saves` as an IndexedDB-backed filesystem and points

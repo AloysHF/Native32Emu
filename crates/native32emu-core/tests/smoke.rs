@@ -484,6 +484,63 @@ fn fhui_menu_populates_game_list() {
     );
 }
 
+/// Regression test for the EmulatorJS restart button: a reset must relaunch
+/// the game that was loaded instead of only clearing the state of the inner
+/// SSL scene the game has switched itself to.
+#[test]
+#[ignore = "requires local Native32 game assets (set NATIVE32_GAME_DIR)"]
+fn reset_restarts_the_loaded_game() {
+    let dir = match game_dir() {
+        Some(d) => d,
+        None => {
+            eprintln!("skipping: no game directory found (set NATIVE32_GAME_DIR)");
+            return;
+        }
+    };
+    let game = match find_asset(&dir, "EBBLADE.smf") {
+        Some(p) => p,
+        None => {
+            eprintln!("skipping: EBBLADE.smf not found under {}", dir.display());
+            return;
+        }
+    };
+
+    let mut emu = Emulator::from_path(game.clone(), 100).expect("load Bloody Blade");
+
+    // Confirm through the title until the game switches itself into an SSL
+    // scene (the story intro).
+    let mut scene = None;
+    for frame in 0..600 {
+        let pressed = if frame % 30 == 0 { vec![KEY_Z] } else { vec![] };
+        emu.set_buttons(&pressed);
+        emu.tick();
+        if emu.filename != game {
+            scene = Some(emu.filename.clone());
+            break;
+        }
+    }
+    let scene = scene.expect("game did not leave its entry content");
+    assert!(
+        scene
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("ssl")),
+        "expected an SSL scene after the title, got {}",
+        scene.display()
+    );
+
+    emu.reset();
+
+    assert_eq!(
+        emu.filename,
+        game,
+        "reset kept running {} instead of restarting {}",
+        scene.display(),
+        game.display()
+    );
+    assert_eq!(emu.tick_count, 0);
+}
+
 /// Selecting a game in the populated list must launch it: the StartGame host
 /// call loads the chosen `.smf`, switching the loaded content away from FHUI.
 #[test]
@@ -530,6 +587,57 @@ fn fhui_menu_starts_selected_game() {
         .try_return_to_parent()
         .expect("return to FHUI after selected game"));
     assert_eq!(emu.filename, menu);
+}
+
+/// A reset after launching a game from the menu must restart that game, not
+/// the package menu it was launched from.
+#[test]
+#[ignore = "requires local Native32 game assets (set NATIVE32_GAME_DIR)"]
+fn reset_after_menu_selection_restarts_the_game() {
+    let dir = match game_dir() {
+        Some(d) => d,
+        None => {
+            eprintln!("skipping: no game directory found (set NATIVE32_GAME_DIR)");
+            return;
+        }
+    };
+    let menu = match find_asset(&dir, "FHUI.smf") {
+        Some(p) => p,
+        None => {
+            eprintln!("skipping: FHUI.smf not found under {}", dir.display());
+            return;
+        }
+    };
+
+    let mut emu = run_scripted(&menu, 260, |frame| {
+        if (50..53).contains(&frame) || (110..113).contains(&frame) {
+            vec![KEY_Z]
+        } else {
+            vec![]
+        }
+    })
+    .expect("run FHUI menu");
+    assert!(emu.can_return_to_parent(), "selected game was not launched");
+
+    emu.reset();
+
+    let name = emu
+        .filename
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+    assert!(
+        !name.eq_ignore_ascii_case("FHUI.smf"),
+        "reset reloaded the package menu instead of the launched game"
+    );
+    assert!(
+        name.to_ascii_lowercase().ends_with(".smf"),
+        "reset did not return to the launched SMF game: {name}"
+    );
+    assert!(
+        emu.can_return_to_parent(),
+        "reset dropped back navigation to the menu"
+    );
 }
 
 /// Regression test for Magical Adventure's first mini-game flow: a confirm
