@@ -102,6 +102,20 @@ pub fn find_fhui_in_directory(dir: &Path) -> Option<PathBuf> {
     find_root_file(dir, "FHUI.smf")
 }
 
+/// Pick the content to boot when the frontend has already extracted a package
+/// into `dir` and hands the core one of its files.
+///
+/// EmulatorJS decompresses a selected archive itself and passes the first entry
+/// matching `core.json`'s extension list. For a full collection that entry is
+/// an inner game (for example `EACT/EBBLADE.smf`) rather than the menu, so fall
+/// back to the same root entry point the ZIP loader would have chosen.
+pub fn prefer_menu_entrypoint(dir: &Path, requested: PathBuf) -> PathBuf {
+    match find_entrypoint_in_directory(dir) {
+        Some(menu) if menu != requested => menu,
+        _ => requested,
+    }
+}
+
 fn collect_smf_files(dir: &Path, found: &mut Vec<PathBuf>, depth: usize) {
     if depth > 16 {
         return;
@@ -299,6 +313,27 @@ mod tests {
 
         let result = find_entrypoint_in_directory(dir.path());
         assert_eq!(result, Some(fhui_path));
+    }
+
+    #[test]
+    fn test_prefer_menu_entrypoint_replaces_inner_game() {
+        let dir = tempfile::tempdir().unwrap();
+        let menu = dir.path().join("FHUI.smf");
+        fs::write(&menu, b"fake").unwrap();
+        let requested = dir.path().join("EACT").join("EBBLADE.smf");
+
+        assert_eq!(prefer_menu_entrypoint(dir.path(), requested), menu);
+    }
+
+    #[test]
+    fn test_prefer_menu_entrypoint_keeps_requested_without_menu() {
+        let dir = tempfile::tempdir().unwrap();
+        let requested = dir.path().join("EACT").join("EBBLADE.smf");
+
+        assert_eq!(
+            prefer_menu_entrypoint(dir.path(), requested.clone()),
+            requested
+        );
     }
 
     #[test]

@@ -143,6 +143,20 @@ pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
                 return false;
             }
         };
+        let requested = std::path::PathBuf::from(path);
+
+        // EmulatorJS decompresses the selected archive itself and hands the
+        // core the first extracted entry matching core.json's extension list,
+        // not the archive. In a full collection that entry is an inner game
+        // (e.g. EACT/EBBLADE.smf), so prefer the extracted root menu to match
+        // what the ZIP loader boots for the same archive on desktop.
+        #[cfg(target_os = "emscripten")]
+        let path = native32emu_core::archive_loader::prefer_menu_entrypoint(
+            std::path::Path::new("/"),
+            requested,
+        );
+        #[cfg(not(target_os = "emscripten"))]
+        let path = requested;
 
         // Set pixel format to XRGB8888
         let pixel_format = retro_pixel_format::RETRO_PIXEL_FORMAT_XRGB8888;
@@ -166,10 +180,15 @@ pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
         );
 
         // Create emulator instance
-        match Emulator::from_path(std::path::PathBuf::from(path), 100) {
+        match Emulator::from_path(path, 100) {
             Ok(mut emu) => {
                 let (width, height) = emu.get_resolution();
-                log::info!("Game loaded: {} ({}x{})", path, width, height);
+                log::info!(
+                    "Game loaded: {} ({}x{})",
+                    emu.filename.display(),
+                    width,
+                    height
+                );
                 // Apply the user's current core option selections.
                 apply_core_options(&mut emu);
                 // In the browser the content lives in a throwaway MEMFS tree;

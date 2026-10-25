@@ -98,6 +98,13 @@ The core then opens the archive's menu entry point (`FHUI.smf`, falling back to
 `NA32UI.smf`) when present. For a single-game package it loads the archive's
 only `.smf` (or the one matching the archive name).
 
+EmulatorJS extracts the archive in the browser itself and hands the core one of
+the extracted files — the first entry whose extension is listed in
+`core.json`, not the archive. For a full collection that entry is an inner game
+(for example `EACT/EBBLADE.smf`), so the browser build prefers a root
+`FHUI.smf`/`NA32UI.smf` whenever the extracted tree contains one, matching the
+ZIP loader's behavior on desktop.
+
 Always hand the core a ZIP, never a bare `.smf`/`.sgm`: multi-file games load
 their SSL scenes and MPEG videos through relative paths, so a loose file boots
 without its assets. See
