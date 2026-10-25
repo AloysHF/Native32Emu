@@ -36,6 +36,10 @@ struct ReturnFrame {
 /// codes and produces a framebuffer plus audio samples.
 pub struct Emulator {
     pub filename: PathBuf,
+    /// Content a frontend reset restarts: the loaded file, or the game most
+    /// recently launched from a menu. It is deliberately not replaced by the
+    /// SSL scene that happens to be running.
+    session_path: PathBuf,
     /// Stable root used to encode content paths inside portable save states.
     content_root: PathBuf,
     pub reader: Native32Reader,
@@ -106,7 +110,8 @@ impl Emulator {
             .to_path_buf();
 
         Ok(Self {
-            filename: game_path,
+            filename: game_path.clone(),
+            session_path: game_path,
             content_root,
             reader,
             sprites: SpriteSystem::new(),
@@ -202,6 +207,7 @@ impl Emulator {
         self.content_loader = ContentLoader::new();
         self.cur_frame_objects.clear();
         self.menu_context = None;
+        self.session_path = path.clone();
         self.filename = path;
         self.reader = reader;
         self.audio = AudioEngine::new(self.reader.colorspace, (self.audio.volume * 100.0) as u32);
@@ -636,6 +642,12 @@ impl Emulator {
                 path: self.filename.clone(),
             });
 
+        // A game chosen from a menu is what a frontend reset must restart,
+        // rather than the SSL scene the game later switches itself to.
+        if kind == ContentLoadKind::LaunchChild {
+            self.session_path = fullpath.clone();
+        }
+
         // Stop all sounds
         self.audio.stop_all();
 
@@ -677,17 +689,16 @@ impl Emulator {
         self.audio.get_pending_samples()
     }
 
-    /// Reset the emulator state.
+    /// Restart the game from the content that started the current session.
+    ///
+    /// Frontend restart buttons (e.g. EmulatorJS's) must relaunch the game the
+    /// player entered, not just clear the counters of the inner SSL scene that
+    /// is currently running.
     pub fn reset(&mut self) {
-        self.tick_count = 0;
-        self.time_ms = 0;
-        self.sprites = SpriteSystem::new();
-        self.frame_player = FramePlayer::new();
-        self.vm = ActionVM::new();
-        self.pending_videos.clear();
-        self.video_player = None;
-        self.active_video_name = None;
-        self.audio.stop_all();
+        let path = self.session_path.clone();
+        if let Err(err) = self.load_path(path) {
+            log::error!("Failed to restart game content: {err:#}");
+        }
     }
 
     /// Get the fixed size needed for libretro serialization.
