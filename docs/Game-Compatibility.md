@@ -21,7 +21,7 @@ All 84 Native32 games in the test suite load and run without fatal errors. Each 
 | 7 | 失落之剑 | Lost Sword | tmp/native32_game/EACT/LostSwor.smf | ![失落之剑](images/EACT/LostSwor.png) | 剑与魔法的奇幻动作冒险游戏，寻找失落的神剑，对抗黑暗势力。 | ✅ Pass |
 | 8 | 鼓舞 | Music Game | tmp/native32_game/EACT/MusicGam.smf | ![鼓舞](images/EACT/MusicGam.png) | 音乐游戏，相当于劲舞团一样的玩法，但操作较其简单，跟随节奏提示按下方向键。 | ✅ Pass |
 | 9 | 波波气球 | PoPo Fun | tmp/native32_game/EACT/PoPoFun.smf | ![波波气球](images/EACT/PoPoFun.png) | 经典的踩气球游戏，控制主角用脚踩爆敌人头顶气球来消灭对手。 | ✅ Pass |
-| 10 | 少林厨房 | ShaoLin Kitchen | tmp/native32_game/EACT/ShaoLinK.smf | ![少林功夫](images/EACT/ShaoLinK.png) | 少林题材的游戏，用功夫接住飞碗。 | ✅ Pass |
+| 10 | 少林厨房 | ShaoLin Kitchen | tmp/native32_game/EACT/ShaoLinK.smf | ![少林功夫](images/EACT/ShaoLinK.png) | 少林主题趣味小游戏，施展功夫接住飞碗。 | ✅ Pass |
 | 11 | 三只小猪 | Three Pigs | tmp/native32_game/EACT/ThreePig.smf | ![三只小猪](images/EACT/ThreePig.png) | 射箭防守游戏，控制小猪用弓箭抵御大灰狼的进攻，保护家园。 | ✅ Pass |
 
 ## EELA — Educational Games (32 games)
@@ -35,16 +35,16 @@ All 84 Native32 games in the test suite load and run without fatal errors. Each 
 | 5 | 认识动物 2 | Recognize Animals 2 | tmp/native32_game/EELA/Animals2.smf | ![认识动物 2](images/EELA/Animals2.png) | 动物认知学习游戏（第二辑），认识更多种类的动物。 | ✅ Pass |
 | 6 | 小鸡回家 | Chickling Go Home | tmp/native32_game/EELA/Chicklin.smf | ![小鸡回家](images/EELA/Chicklin.png) | 关于简单加减乘除运算正误判断的练习，适合多个年龄层幼儿，判断数学等式是否正确。 | ✅ Pass |
 | 7 | 颜色匹配 | Colors Matching | tmp/native32_game/EELA/ColorsMa.smf | ![颜色匹配](images/EELA/ColorsMa.png) | 颜色配对学习游戏，通过匹配颜色学习辨识不同色彩。 | ✅ Pass |
-| 8 | 综合算术 |Comprehensive Arithmetic | tmp/native32_game/EELA/Comprehe.smf | ![综合算术](images/EELA/Comprehe.png) | 综合算术游戏，通过解决算术问题，提升算术能力。 | ✅ Pass |
+| 8 | 综合算术 |Comprehensive Arithmetic | tmp/native32_game/EELA/Comprehe.smf | ![综合算术](images/EELA/Comprehe.png) | 综合算术小游戏，解答各类算术谜题，锻炼运算能力。 | ✅ Pass |
 | 9 | 数字猎人 | DigiHunter | tmp/native32_game/EELA/DigiHunt.smf | ![数字猎人](images/EELA/DigiHunt.png) | 数字猎人游戏，在星空背景下寻找并收集数字。 | ✅ Pass |
 | 10 | 找出极值 | Find the Most | tmp/native32_game/EELA/FindTheM.smf | ![找匹配](images/EELA/FindTheM.png) | 数量比较游戏，在嘉年华场景中找出数量最多的物品。 | ✅ Pass |
 | 11 | 认识水果 | Recognize Fruits I | tmp/native32_game/EELA/Fruits1.smf | ![认识水果](images/EELA/Fruits1.png) | 水果主题学习游戏，通过趣味互动认识各种水果。 | ✅ Pass |
 | 12 | 认识水果 2 | Recognize Fruits II | tmp/native32_game/EELA/Fruits2.smf | ![认识水果 2](images/EELA/Fruits2.png) | 水果认知学习游戏（第二辑），认识更多种类的水果。 | ✅ Pass |
 | 13 | 地理初识 | Learning Geography | tmp/native32_game/EELA/Geograph.smf | ![地理初识](images/EELA/Geograph.png) | 地理知识学习游戏，通过互动学习世界地理知识。 | ✅ Pass |
 | 14 | 生活常识 | Living Tips | tmp/native32_game/EELA/LivingTi.smf | ![生活常识](images/EELA/LivingTi.png) | 生活常识学习游戏，认识各种生物及其特征。 | ✅ Pass |
-| 15 | 魔法充能 | Magic Charge | tmp/native32_game/EELA/MagicCha.smf | ![魔法充能](images/EELA/MagicCha.png) | 魔法充能学习游戏，通过魔法表达式连接学习算术。 | ✅ Pass |
-| 16 | 魔法冒险 | Magical Adventure | tmp/native32_game/EELA/MagicalA.smf | ![魔法冒险](images/EELA/MagicalA.png) | 魔法冒险学习游戏，通过魔法主题学习算术。 | ✅ Pass |
-| 17 | 数学小舟 | Math Barge | tmp/native32_game/EELA/MathBarg.smf | ![数学方舟](images/EELA/MathBarg.png) | 数学运算练习游戏，在小船上进行数学计算挑战。 | ✅ Pass |
+| 15 | 魔法充能 | Magic Charge | tmp/native32_game/EELA/MagicCha.smf | ![魔法充能](images/EELA/MagicCha.png) | 魔法充能小游戏，借助魔法拼接表达式，学习算术知识。 | ✅ Pass |
+| 16 | 魔法冒险 | Magical Adventure | tmp/native32_game/EELA/MagicalA.smf | ![魔法冒险](images/EELA/MagicalA.png) | 魔法主题学习小游戏，在奇幻冒险中练习算术。 | ✅ Pass |
+| 17 | 数学小舟 | Math Barge | tmp/native32_game/EELA/MathBarg.smf | ![数学小舟](images/EELA/MathBarg.png) | 数学运算练习游戏，在小船上进行数学计算挑战。 | ✅ Pass |
 | 18 | 小猴算术 | Monkey Arithmetic | tmp/native32_game/EELA/MonkeyAr.smf | ![小猴算术](images/EELA/MonkeyAr.png) | 猴子算术游戏，跟随小猴子进行趣味数学练习。 | ✅ Pass |
 | 19 | 比大小 | More Or Less | tmp/native32_game/EELA/MoreOrLe.smf | ![比大小](images/EELA/MoreOrLe.png) | 关于比较大小的游戏，适合较低年龄幼儿，判断两边宝石数量并填上 `<、=、>` 连接符。 | ✅ Pass |
 | 20 | 音乐基础 | Music Basics | tmp/native32_game/EELA/MusicBas.smf | ![音乐基础](images/EELA/MusicBas.png) | 音乐基础知识学习游戏，认识音符和节奏。 | ✅ Pass |
@@ -82,9 +82,9 @@ All 84 Native32 games in the test suite load and run without fatal errors. Each 
 | 1 | 坏男孩 | Bad Boy | tmp/native32_game/EPUZ/Bad Boy.smf | ![坏男孩](images/EPUZ/BadBoy.png) | 篮球投篮游戏，控制角色将篮球投入篮筐。 | ✅ Pass |
 | 2 | 铃铛女孩 | Bell Girls | tmp/native32_game/EPUZ/BellGirl.smf | ![铃铛女孩](images/EPUZ/BellGirl.png) | 铃铛女孩益智游戏，控制角色收集铃铛。 | ✅ Pass |
 | 3 | 小猫快跑 | Cat Run | tmp/native32_game/EPUZ/Cat Run.smf | ![小猫快跑](images/EPUZ/CatRun.png) | 选择喜欢的小猫下注，控制它参加跑步比赛。不同名次获得不同奖金，取决于玩家操作。 | ✅ Pass |
-| 4 | 苍穹天城 | Celestial Castle | tmp/native32_game/EPUZ/CeCastle.smf | ![苍穹天城](images/EPUZ/CeCastle.png) | 天空城堡主题益智游戏，在梦幻城堡中进行遍历解谜。 | ✅ Pass |
+| 4 | 苍穹天城 | Celestial Castle | tmp/native32_game/EPUZ/CeCastle.smf | ![苍穹天城](images/EPUZ/CeCastle.png) | 天空城堡益智小游戏，在梦幻城堡里路径遍历探索解谜。 | ✅ Pass |
 | 5 | 龙 | Dragon | tmp/native32_game/EPUZ/Dragon.smf | ![龙](images/EPUZ/Dragon.png) | 龙主题益智游戏，控制龙进行冒险闯关。 | ✅ Pass |
-| 6 | 梦境仙乡 | Dreaming Fairy Town | tmp/native32_game/EPUZ/DrFairy.smf | ![梦境仙乡](images/EPUZ/DrFairy.png) | 梦幻仙子城镇主题益智游戏，在魔法森林中逻辑解谜。 | ✅ Pass |
+| 6 | 梦境仙乡 | Dreaming Fairy Town | tmp/native32_game/EPUZ/DrFairy.smf | ![梦境仙乡](images/EPUZ/DrFairy.png) | 幻仙城镇益智小游戏，在魔法森林里物理逻辑推理解谜。 | ✅ Pass |
 | 7 | 元素历险 | Elemental Adventure | tmp/native32_game/EPUZ/Element.smf | ![元素历险](images/EPUZ/Element.png) | 俄罗斯方块原型游戏。不同形状的方块需要合理组合，连成横行被收集消除。红色方块增加特殊效果。 | ✅ Pass |
 | 8 | 符文之语 | Rune Word | tmp/native32_game/EPUZ/ERuneWod.smf | ![符文之语](images/EPUZ/ERuneWod.png) | 类似于对对碰的游戏。年轻的魔法学徒艾莉进入炼金房修炼，在大魔导师雷斯林的指导下学习一个又一个的魔法。各种符文代表不同属性的魔力。 | ✅ Pass |
 | 9 | 食物雨 | Food Rain | tmp/native32_game/EPUZ/FoodRain.smf | ![食物雨](images/EPUZ/FoodRain.png) | 食物雨游戏，接住从天而降的各种食物。 | ✅ Pass |
@@ -95,14 +95,14 @@ All 84 Native32 games in the test suite load and run without fatal errors. Each 
 | 14 | 躲猫猫 | Hide & Seek | tmp/native32_game/EPUZ/HideSeek.smf | ![躲猫猫](images/EPUZ/HideSeek.png) | 躲猫猫益智游戏，寻找隐藏的角色和物品。 | ✅ Pass |
 | 15 | 幸运兔 | Lucky Rabbits | tmp/native32_game/EPUZ/LRabbits.smf | ![幸运兔](images/EPUZ/LRabbits.png) | 幸运兔益智游戏，控制可爱的小兔子进行冒险。 | ✅ Pass |
 | 16 | 打地鼠 | Mouse | tmp/native32_game/EPUZ/Mouse.smf | ![打地鼠](images/EPUZ/Mouse.png) | 经典打地鼠游戏。地鼠破坏庄稼，玩家拿起武器教训它们。 | ✅ Pass |
-| 17 | 蘑咻对掷 | Mushu Mushu | tmp/native32_game/EPUZ/MushuMus.smf | ![蘑咻对掷](images/EPUZ/MushuMus.png) | 炸弹投掷益智游戏，在森林中进行投掷挑战。 | ✅ Pass |
-| 18 | 调皮红猿 | Naughty Orang | tmp/native32_game/EPUZ/NauOrang.smf | ![调皮红猿](images/EPUZ/NauOrang.png) | 调皮红猿益智游戏，在热带场景中打砖块。 | ✅ Pass |
+| 17 | 蘑咻对掷 | Mushu Mushu | tmp/native32_game/EPUZ/MushuMus.smf | ![蘑咻对掷](images/EPUZ/MushuMus.png) | 炸弹投掷益智小游戏，在森林里进行投掷挑战。 | ✅ Pass |
+| 18 | 调皮红猿 | Naughty Orang | tmp/native32_game/EPUZ/NauOrang.smf | ![调皮红猿](images/EPUZ/NauOrang.png) | 淘气小猴益智小游戏，在热带场景中挑战打砖块。 | ✅ Pass |
 | 19 | 果园 | Orchard | tmp/native32_game/EPUZ/Orchard.smf | ![果园](images/EPUZ/Orchard.png) | 果园水果分类益智游戏，将水果分类整理。 | ✅ Pass |
-| 20 | 海盗纪元 | Pirate Century | tmp/native32_game/EPUZ/PirateC.smf | ![海盗纪元](images/EPUZ/PirateC.png) | 海盗纪元益智游戏，驾驶海盗船进行海上冒险。 | ✅ Pass |
+| 20 | 海盗纪元 | Pirate Century | tmp/native32_game/EPUZ/PirateC.smf | ![海盗纪元](images/EPUZ/PirateC.png) | 海盗纪元益智小游戏，推算敌船方位，开火将其击沉。 | ✅ Pass |
 | 21 | 小熊拼图 | Puzzle Game | tmp/native32_game/EPUZ/Puzzle.smf | ![小熊拼图](images/EPUZ/Puzzle.png) | 经典拼图游戏。游戏开始时打乱图片，经过努力成功后带来成就感和喜悦。 | ✅ Pass |
 | 22 | 星空吞吞 | Snake Mania | tmp/native32_game/EPUZ/SnakeMa.smf | ![星空吞吞](images/EPUZ/SnakeMa.png) | 贪吃蛇原型游戏。角色自动前进，吃到食物身体加长，速度加快，碰到边缘或自身则失败。 | ✅ Pass |
 | 23 | 数独 | Sudoku | tmp/native32_game/EPUZ/Sudoku.smf | ![数独](images/EPUZ/Sudoku.png) | 数独益智游戏，在十字形棋盘上进行数字填充挑战。 | ✅ Pass |
-| 24 | 零猎 | Zero Hunt | tmp/native32_game/EPUZ/ZeroHunt.smf | ![零猎](images/EPUZ/ZeroHunt.png) | 零猎人益智游戏，在科幻场景中寻消灭敌机。 | ✅ Pass |
+| 24 | 零猎 | Zero Hunt | tmp/native32_game/EPUZ/ZeroHunt.smf | ![零猎](images/EPUZ/ZeroHunt.png) | 零猎飞机益智小游戏，于科幻场景中歼灭敌机。 | ✅ Pass |
 
 ## ESPG — Sport Games (3 games)
 
