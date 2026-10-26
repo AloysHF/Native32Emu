@@ -349,7 +349,7 @@ jobs:
           components: rust-src
 
       - name: Setup Emscripten
-        uses: mymindstorm/setup-emsdk@v14
+        uses: mymindstorm/setup-emsdk@v16
         with:
           version: 3.1.74
 
