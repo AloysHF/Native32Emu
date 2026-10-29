@@ -56,6 +56,8 @@ pub struct Emulator {
     pub file_browser: crate::file_browser::FileBrowser,
     /// Navigation context saved/restored by the menu (GetContext/SaveContext).
     pub menu_context: Option<String>,
+    /// Text color set by the menu's SetFtColor host call (0x00RRGGBB).
+    menu_font_color: u32,
     pub cur_frame_objects: Vec<FrameObject>,
     pub tick_count: u64,
     pub time_ms: u32,
@@ -125,6 +127,7 @@ impl Emulator {
             content_loader: ContentLoader::new(),
             file_browser: crate::file_browser::FileBrowser::new(),
             menu_context: None,
+            menu_font_color: 0x00FF_FFFF,
             cur_frame_objects: Vec::new(),
             tick_count: 0,
             time_ms: 0,
@@ -613,6 +616,98 @@ impl Emulator {
         }
     }
 
+    /// Load a game's SWFT thumbnail and bind it to a menu sprite.
+    ///
+    /// `spec` has the form "<spriteName>+<gamePath>" where `<gamePath>` is a
+    /// root-relative path without extension (e.g. "/EACT    /EBBLADE"). An
+    /// empty or unresolvable path clears the sprite's thumbnail.
+    fn load_thumbnail(&mut self, spec: &str) {
+        let (sprite_name, pic_path) = match spec.split_once('+') {
+            Some((sprite, path)) => (sprite.trim(), path),
+            None => (spec.trim(), ""),
+        };
+        if sprite_name.is_empty() {
+            log::warn!("LoadThumbnail: missing sprite name in '{}'", spec);
+            return;
+        }
+
+        let normalized = normalize_content_path(pic_path);
+        if normalized.is_empty() {
+            self.renderer.remove_sprite_override(sprite_name);
+            return;
+        }
+        let filename = if has_extension(Path::new(&normalized), "smf") {
+            normalized
+        } else {
+            format!("{}.smf", normalized)
+        };
+        let Some(path) = ContentLoader::find_content_file(&self.filename, &filename) else {
+            log::debug!("LoadThumbnail: game not found for '{}'", pic_path);
+            self.renderer.remove_sprite_override(sprite_name);
+            return;
+        };
+        let data = match std::fs::read(&path) {
+            Ok(d) => d,
+            Err(e) => {
+                log::warn!("LoadThumbnail: failed to read {}: {}", path.display(), e);
+                self.renderer.remove_sprite_override(sprite_name);
+                return;
+            }
+        };
+        match crate::image_decoder::decode_swft_thumbnail(&data) {
+            Some(img) => self
+                .renderer
+                .set_sprite_override(sprite_name.to_string(), img, None),
+            None => {
+                log::debug!("LoadThumbnail: no thumbnail in {}", path.display());
+                self.renderer.remove_sprite_override(sprite_name);
+            }
+        }
+    }
+
+    /// Render a text label into a menu sprite (FormateStr host call).
+    ///
+    /// `spec` has the form "<spriteName>+<align>+<text>". The label is drawn in
+    /// the color of the last SetFtColor call; an empty label leaves the sprite
+    /// untouched (the English menu uses this to clear unused labels and keeps
+    /// its pre-rendered `.dat` banners).
+    fn format_text(&mut self, spec: &str) {
+        let segments: Vec<&str> = spec.splitn(3, '+').collect();
+        if segments.len() < 3 {
+            log::warn!("FormateStr: malformed spec '{}'", spec);
+            return;
+        }
+        let sprite_name = segments[0].trim();
+        let text = segments[2];
+        if sprite_name.is_empty() || text.is_empty() {
+            return;
+        }
+        let centered = segments[1].trim() == "1";
+        let (width, height) = self.text_slot_size(sprite_name);
+        let image = crate::font::render_text(text, self.menu_font_color, width, height, centered);
+        self.renderer
+            .set_sprite_override(sprite_name.to_string(), image, None);
+    }
+
+    /// Size of the transparent text slot a menu sprite draws into.
+    fn text_slot_size(&mut self, sprite_name: &str) -> (u32, u32) {
+        let Some(movie) = self.sprites.get(sprite_name) else {
+            return (98, 16);
+        };
+        let (movie_index, frame) = (movie.movie, movie.frame);
+        let image_index = {
+            let frames = self.reader.get_movie(movie_index);
+            match frames.get(frame) {
+                Some(f) => f.image as u32,
+                None => return (98, 16),
+            }
+        };
+        match self.reader.get_image(image_index) {
+            Some(img) => (img.width, img.height),
+            None => (98, 16),
+        }
+    }
+
     /// Switch to a new content file.
     fn switch_content(&mut self, filename: &str, kind: ContentLoadKind) -> anyhow::Result<()> {
         let fullpath = ContentLoader::find_content_file(&self.filename, filename)
@@ -1018,6 +1113,18 @@ impl VmHost for Emulator {
                 let name = self.file_browser.next_file();
                 self.vm.vars.insert(url.to_lowercase(), name);
             }
+            "GetDirNum" => {
+                let count = self.file_browser.dir_count(&self.filename, arg);
+                self.vm.vars.insert(url.to_lowercase(), count.to_string());
+            }
+            "GetFirstDir" => {
+                let name = self.file_browser.first_dir(&self.filename, arg);
+                self.vm.vars.insert(url.to_lowercase(), name);
+            }
+            "GetNextDir" => {
+                let name = self.file_browser.next_dir();
+                self.vm.vars.insert(url.to_lowercase(), name);
+            }
             "GetContext" => {
                 // Restore the navigation context saved before launching a game;
                 // "NULL" tells the menu to start from its default state.
@@ -1031,10 +1138,19 @@ impl VmHost for Emulator {
                 self.menu_context = Some(url.to_string());
             }
             "FHUI_StrSub" => {
-                // FHUI_StrSub+<str>+<delim>+<field>+... : split <str> on the
-                // 1-character <delim> and return the 1-based <field>.
+                // FHUI_StrSub+<str>+<delim>+<field>[+<end>+<mode>]: return a
+                // field of <str> split on <delim>.
                 let value = fhui_str_sub(&parts);
                 self.vm.vars.insert(url.to_lowercase(), value);
+            }
+            "FHUI_SubStrNum" => {
+                let count = fhui_sub_str_num(&parts);
+                self.vm.vars.insert(url.to_lowercase(), count.to_string());
+            }
+            "SetFtColor" => {
+                // url is the text color ("#RRGGBB") applied by following
+                // FormateStr calls.
+                self.menu_font_color = parse_menu_color(url).unwrap_or(0x00FF_FFFF);
             }
             "StartGame" => {
                 // `url` is a root-relative game path without extension
@@ -1047,13 +1163,17 @@ impl VmHost for Emulator {
                 // in <picPath>.dat and bind it to the named menu sprite.
                 self.load_menu_image(url);
             }
+            "LoadThumbnail" => {
+                // url = "<spriteName>+<gamePath>" : decode the SWFT thumbnail
+                // embedded at the start of the game file and bind it to the
+                // named menu sprite.
+                self.load_thumbnail(url);
+            }
             "FormateStr" => {
-                // In FHUI this only ever formats an empty string to clear a
-                // text label; the visible game names are pre-rendered banner
-                // graphics loaded from the `.dat` files via LoadImage("D").
-                // Arbitrary text rendering would need a font subsystem that
-                // does not exist yet.
-                log::debug!("Ignoring FormateStr('{}')", url);
+                // url = "<spriteName>+<align>+<text>" : render the label into
+                // the sprite's text slot. The Chinese FHUI variant relies on
+                // this for all directory and file names.
+                self.format_text(url);
             }
             "SSL" | "NAV" => match parts.get(1).copied().unwrap_or("") {
                 "SSL_PlayNext" => {
@@ -1168,8 +1288,17 @@ fn str_to_float(s: &str) -> f64 {
     s.parse::<f64>().unwrap_or(0.0)
 }
 
-/// FHUI_StrSub host helper: split the source string `parts[1]` on the
-/// delimiter `parts[2]` and return its 1-based field `parts[3]`.
+/// FHUI_StrSub host helper.
+///
+/// `parts` is `["FHUI_StrSub", source, delim, field, ...]`. Fields are the
+/// non-empty pieces of `source` split on `delim`, numbered from 1. Both menu
+/// variants rely on empty components being skipped: their saved navigation
+/// context is delimited with a leading/trailing separator.
+///
+/// With a fifth argument `mode == "2"` the call instead returns the run of
+/// fields `field..=parts[4]` joined back together plus a trailing `delim`; the
+/// Chinese menu uses this to truncate its `dPos`/`selectDirName` stacks when
+/// walking back up a directory.
 fn fhui_str_sub(parts: &[&str]) -> String {
     if parts.len() < 4 {
         return String::new();
@@ -1183,12 +1312,51 @@ fn fhui_str_sub(parts: &[&str]) -> String {
     let fields: Vec<&str> = if delim.is_empty() {
         vec![source]
     } else {
-        source.split(delim).collect()
+        source.split(delim).filter(|s| !s.is_empty()).collect()
     };
+
+    if parts.get(5).is_some_and(|mode| mode.trim() == "2") {
+        let end: usize = parts
+            .get(4)
+            .and_then(|s| s.trim().parse().ok())
+            .unwrap_or(field);
+        let start = field - 1;
+        let end = end.min(fields.len());
+        let mut result = if start < end {
+            fields[start..end].join(delim)
+        } else {
+            String::new()
+        };
+        result.push_str(delim);
+        return result;
+    }
+
     fields
         .get(field - 1)
         .map(|s| s.to_string())
         .unwrap_or_default()
+}
+
+/// FHUI_SubStrNum host helper: number of non-empty fields in `parts[1]`
+/// separated by `parts[2]`.
+fn fhui_sub_str_num(parts: &[&str]) -> usize {
+    if parts.len() < 3 {
+        return 0;
+    }
+    if parts[2].is_empty() {
+        return usize::from(!parts[1].is_empty());
+    }
+    parts[1].split(parts[2]).filter(|s| !s.is_empty()).count()
+}
+
+/// Parse a menu text color ("#RRGGBB" or "#AARRGGBB") into 0x00RRGGBB.
+fn parse_menu_color(value: &str) -> Option<u32> {
+    let hex = value.trim().trim_start_matches('#');
+    match hex.len() {
+        6 => u32::from_str_radix(hex, 16).ok(),
+        8 => u32::from_str_radix(hex, 16).ok().map(|v| v & 0x00FF_FFFF),
+        _ => None,
+    }
 }
 
 fn portable_content_path(path: &Path, root: &Path, label: &str) -> Result<String> {
@@ -1296,5 +1464,44 @@ mod tests {
             Path::new("menu.smf"),
             Path::new("menu.smf")
         ));
+    }
+
+    #[test]
+    fn fhui_str_sub_selects_non_empty_fields() {
+        // Chinese/English saveUIData starts and ends with the delimiter.
+        let parts = ["FHUI_StrSub", "*EACT*0*0*", "*", "1", "1", "1"];
+        assert_eq!(fhui_str_sub(&parts), "EACT");
+        let parts = ["FHUI_StrSub", "*EACT*0*0*", "*", "2", "1", "1"];
+        assert_eq!(fhui_str_sub(&parts), "0");
+        // English menu uses the short form without the extra arguments.
+        let parts = ["FHUI_StrSub", "*EACT*0*0*", "*", "3"];
+        assert_eq!(fhui_str_sub(&parts), "0");
+    }
+
+    #[test]
+    fn fhui_str_sub_prefix_mode_truncates_the_path_stack() {
+        let parts = ["FHUI_StrSub", "/Funny Game/Education/", "/", "1", "1", "2"];
+        assert_eq!(fhui_str_sub(&parts), "Funny Game/");
+        // Walking up from the first level yields the root separator.
+        let parts = ["FHUI_StrSub", "/Action Game/", "/", "1", "0", "2"];
+        assert_eq!(fhui_str_sub(&parts), "/");
+    }
+
+    #[test]
+    fn fhui_sub_str_num_counts_path_components() {
+        let root = ["FHUI_SubStrNum", "/", "/"];
+        assert_eq!(fhui_sub_str_num(&root), 0);
+        let nested = ["FHUI_SubStrNum", "/Funny Game/Education/", "/"];
+        assert_eq!(fhui_sub_str_num(&nested), 2);
+    }
+
+    #[test]
+    fn menu_colors_parse_hex() {
+        assert_eq!(parse_menu_color("#FFFFFF"), Some(0x00FF_FFFF));
+        assert_eq!(parse_menu_color("#000000"), Some(0));
+        assert_eq!(parse_menu_color("FFFF00"), Some(0x00FF_FF00));
+        assert_eq!(parse_menu_color("#80FF0000"), Some(0x00FF_0000));
+        assert_eq!(parse_menu_color("#FFF"), None);
+        assert_eq!(parse_menu_color(""), None);
     }
 }

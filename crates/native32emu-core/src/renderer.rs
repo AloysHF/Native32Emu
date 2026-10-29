@@ -82,6 +82,11 @@ impl Renderer {
         );
     }
 
+    /// Drop one sprite image override (e.g. clearing a menu thumbnail).
+    pub fn remove_sprite_override(&mut self, name: &str) {
+        self.sprite_overrides.remove(name);
+    }
+
     /// Drop all sprite image overrides (e.g. when switching content).
     pub fn clear_sprite_overrides(&mut self) {
         self.sprite_overrides.clear();

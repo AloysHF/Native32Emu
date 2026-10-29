@@ -21,6 +21,7 @@ pub mod emulator;
 pub mod error;
 pub mod file_browser;
 pub mod file_loader;
+pub mod font;
 pub mod frame_player;
 pub mod header_decryptor;
 pub mod image_decoder;

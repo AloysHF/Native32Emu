@@ -278,6 +278,27 @@ pub fn decode_image_argb(data: &[u8]) -> Option<RgbaImage> {
     })
 }
 
+/// Decode the optional SWFT thumbnail stored at the start of a Native32 game.
+///
+/// Layout (little-endian): "SWFT" magic, the colorspace tag ("_YUV"/"ARGB"),
+/// a u32 flags field, then a standard image block (`[w u16][h u16][size u32]`
+/// followed by the run-length compressed pixels) at offset 12. Returns `None`
+/// when the data is not a SWFT thumbnail or the image cannot be decoded.
+pub fn decode_swft_thumbnail(data: &[u8]) -> Option<RgbaImage> {
+    if data.len() < 12 || &data[0..4] != b"SWFT" {
+        return None;
+    }
+    let block = &data[12..];
+    match &data[4..8] {
+        b"_YUV" => decode_image_yuv(block),
+        b"ARGB" => decode_image_argb(block),
+        other => {
+            log::warn!("Unknown SWFT colorspace {:?}", other);
+            None
+        }
+    }
+}
+
 /// Convert an A1R5G5B5 (ARGB1555) pixel to ARGB8888.
 ///
 /// The 16-bit value packs, from most to least significant:
@@ -701,5 +722,43 @@ mod tests {
     #[test]
     fn test_read_u32_le_slice() {
         assert_eq!(read_u32_le_slice(&[0x78, 0x56, 0x34, 0x12], 0), 0x12345678);
+    }
+
+    // === decode_swft_thumbnail tests ===
+
+    fn swft(colorspace: &[u8; 4], block: &[u8]) -> Vec<u8> {
+        let mut data = Vec::new();
+        data.extend_from_slice(b"SWFT");
+        data.extend_from_slice(colorspace);
+        data.extend_from_slice(&4u32.to_le_bytes());
+        data.extend_from_slice(block);
+        data
+    }
+
+    #[test]
+    fn test_decode_swft_yuv_thumbnail() {
+        let block = yuv_quads(2, 2, &[[128, 128, 128, 128, 128, 128]], false);
+        let img = decode_swft_thumbnail(&swft(b"_YUV", &block)).expect("decode");
+        assert_eq!((img.width, img.height), (2, 2));
+    }
+
+    #[test]
+    fn test_decode_swft_argb_thumbnail() {
+        let mut block = vec![0u8; 12];
+        block[0..2].copy_from_slice(&1u16.to_le_bytes());
+        block[2..4].copy_from_slice(&1u16.to_le_bytes());
+        block[4..8].copy_from_slice(&4u32.to_le_bytes());
+        block[8..10].copy_from_slice(&(0xC000u16 | 1).to_le_bytes());
+        block[10..12].copy_from_slice(&0xFC00u16.to_le_bytes());
+        let img = decode_swft_thumbnail(&swft(b"ARGB", &block)).expect("decode");
+        assert_eq!((img.width, img.height), (1, 1));
+        assert_eq!(img.pixels[0], 0xFFF80000);
+    }
+
+    #[test]
+    fn test_decode_swft_rejects_other_data() {
+        assert!(decode_swft_thumbnail(b"INFO").is_none());
+        assert!(decode_swft_thumbnail(&swft(b"_YUV", &[])).is_none());
+        assert!(decode_swft_thumbnail(&swft(b"XXXX", &[0u8; 64])).is_none());
     }
 }
