@@ -131,13 +131,17 @@ pub fn resolve_menu_dir(base_file: &Path, menu_path: &str) -> Option<PathBuf> {
 
 /// List the game file stems (".smf", no extension) inside `menu_path`,
 /// sorted case-insensitively for stable navigation order.
+///
+/// The running menu file is listed like any other game: the Chinese FHUI
+/// menu's root view shows it as the single root entry and requests its
+/// thumbnail, so excluding it would empty the root list and clear the
+/// thumbnail pane ("No File!" / "No Thumbnail" on screen).
 fn list_game_files(base_file: &Path, menu_path: &str) -> Vec<String> {
     let dir = match resolve_menu_dir(base_file, menu_path) {
         Some(d) => d,
         None => return Vec::new(),
     };
 
-    let menu_name = base_file.file_name().and_then(|n| n.to_str());
     let mut names = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for entry in entries.flatten() {
@@ -150,10 +154,6 @@ fn list_game_files(base_file: &Path, menu_path: &str) -> Vec<String> {
                 .and_then(|e| e.to_str())
                 .is_some_and(|e| e.eq_ignore_ascii_case("smf"));
             if !is_smf {
-                continue;
-            }
-            let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if menu_name.is_some_and(|menu| file_name.eq_ignore_ascii_case(menu)) {
                 continue;
             }
             if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
@@ -272,12 +272,14 @@ mod tests {
     }
 
     #[test]
-    fn skips_the_running_menu_file() {
+    fn lists_the_running_menu_file() {
         let dir = setup_games();
         let base = dir.path().join("FHUI.smf");
         let mut fb = FileBrowser::new();
-        assert_eq!(fb.file_count(&base, "/"), 0);
-        assert_eq!(fb.first_file(&base, "/"), "");
+        // The menu file is the root's single entry: the Chinese FHUI menu
+        // builds its root selection ("1. fhui" + thumbnail) from it.
+        assert_eq!(fb.file_count(&base, "/"), 1);
+        assert_eq!(fb.first_file(&base, "/"), "FHUI");
     }
 
     #[test]

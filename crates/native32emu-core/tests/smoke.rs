@@ -49,6 +49,23 @@ fn packed_game_dir() -> Option<PathBuf> {
         .filter(|path| path.is_dir())
 }
 
+/// Resolve the directory that holds the Chinese FHUI game assets.
+fn zh_game_dir() -> Option<PathBuf> {
+    if let Ok(dir) = std::env::var("NATIVE32_ZH_GAME_DIR") {
+        let p = PathBuf::from(dir);
+        return p.is_dir().then_some(p);
+    }
+    // Default: <workspace_root>/tmp/native32_game_zh.
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let candidate = manifest
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|root| root.join("tmp").join("native32_game_zh"));
+    candidate
+        .filter(|p| p.is_dir())
+        .filter(|p| p.join("fhui.smf").is_file())
+}
+
 /// Recursively collect playable game files (.smf / .ssl), skipping the NES
 /// games and save files.
 fn collect_games(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -229,6 +246,9 @@ fn save_state_round_trip() {
 
 /// Native32 keycode for the Z / "A" button (menu confirm).
 const KEY_Z: u16 = 0x4000;
+
+/// Native32 keycode for the Left direction (FHUI panel focus switch).
+const KEY_LEFT: u16 = 0x0200;
 
 /// Locate a game asset by file name (case-insensitive) under `dir`.
 fn find_asset(dir: &Path, file_name: &str) -> Option<PathBuf> {
@@ -481,6 +501,82 @@ fn fhui_menu_populates_game_list() {
     assert!(
         emu.renderer.sprite_override_count() > 0,
         "no game thumbnails were loaded from .dat files"
+    );
+}
+
+/// Regression test for issue #159: the Chinese FHUI menu's root file list
+/// must include the running menu file itself. It is the root view's single
+/// selectable entry ("1. fhui"): the menu builds its root selection and
+/// requests its `LoadThumbnail` from it. Excluding it left the root panel
+/// saying "No File!" with no selection, a state the real menu never shows.
+///
+/// Entering a category afterwards must bind the highlighted game's SWFT
+/// thumbnail (games with an embedded thumbnail show it in the selection
+/// wheel; files without one keep the menu's "No Thumbnail" placeholder).
+#[test]
+#[ignore = "requires local Chinese Native32 game assets (set NATIVE32_ZH_GAME_DIR)"]
+fn zh_fhui_root_lists_menu_file_and_binds_game_thumbnails() {
+    let dir = match zh_game_dir() {
+        Some(d) => d,
+        None => {
+            eprintln!(
+                "skipping: no Chinese game directory found \
+                 (set NATIVE32_ZH_GAME_DIR or place games in <repo>/tmp/native32_game_zh)"
+            );
+            return;
+        }
+    };
+    let menu = dir.join("fhui.smf");
+
+    // Boot without input: the root view must list the running menu file as
+    // its single entry and select it.
+    let emu = run_scripted(&menu, 60, |_| vec![]).expect("run Chinese FHUI menu");
+    assert_eq!(
+        emu.vm.vars.get("allfilenum").map(String::as_str),
+        Some("1"),
+        "root file list does not contain the menu file itself"
+    );
+    assert_eq!(
+        emu.vm.vars.get("currentfilename").map(String::as_str),
+        Some("/fhui"),
+        "root selection is not the menu file entry"
+    );
+
+    // Full run: boot, focus the category panel (Left) and confirm the first
+    // category to reach its game selection screen.
+    let emu = run_scripted(&menu, 240, |frame| {
+        if (60..63).contains(&frame) {
+            vec![KEY_LEFT]
+        } else if (140..143).contains(&frame) {
+            vec![KEY_Z]
+        } else {
+            vec![]
+        }
+    })
+    .expect("run Chinese FHUI menu");
+
+    // We entered the first category, still inside the menu.
+    assert_eq!(
+        emu.vm.vars.get("selectdirname").map(String::as_str),
+        Some("/Action Game/"),
+        "did not enter the first category (selectdirname = {:?})",
+        emu.vm.vars.get("selectdirname")
+    );
+    let name = emu
+        .filename
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+    assert!(
+        name.eq_ignore_ascii_case("fhui.smf"),
+        "expected to remain in the menu, but loaded {name}"
+    );
+
+    // The highlighted game has an embedded SWFT thumbnail: it must be bound
+    // to the thumbnail sprite.
+    assert!(
+        emu.renderer.sprite_override_count() > 0,
+        "no game thumbnail was bound on the selection screen"
     );
 }
 
