@@ -14,13 +14,13 @@ All 84 Native32 games in the test suite load and run without fatal errors. Each 
 |---|--------|--------|--------|------|----------|--------|
 | 1 | 赤刃 | Bloody Blade | tmp/native32_game/EACT/EBBLADE.smf | ![赤刃](images/EACT/EBBLADE.png) | 经典的横版动作过关（ACT）游戏。赤刃一族被灭族，20 年后幸存的后裔女刺客开始复仇之旅。 | ✅ Pass |
 | 2 | 枪火 | Gun Fire | tmp/native32_game/EACT/EGUNFIRE.smf | ![枪火](images/EACT/EGUNFIRE.png) | 横版射击（STG）游戏。骑上心爱的机车，拿起火枪，在枪火纷飞的世界去打击黑社会，对抗独裁者，消灭生化怪兽。 | ✅ Pass |
-| 3 | 合金风暴 | Metal Storm | tmp/native32_game/EACT/EMETAL.smf | ![合金风暴](images/EACT/EMETAL.png) | 四向自由卷轴射击游戏。游戏虚构了一个近未来的世界，军事科技以现实世界科技为基础有一定发展，武器与现实世界相似。 | ✅ Pass |
+| 3 | 钢铁风暴 | Metal Storm | tmp/native32_game/EACT/EMETAL.smf | ![钢铁风暴](images/EACT/EMETAL.png) | 四向自由卷轴射击游戏。游戏虚构了一个近未来的世界，军事科技以现实世界科技为基础有一定发展，武器与现实世界相似。 | ✅ Pass |
 | 4 | 海盗 | Pirate | tmp/native32_game/EACT/Epirate.smf | ![海盗](images/EACT/Epirate.png) | 以"炸弹人"为原型的休闲桌面（PUZ）游戏。小海盗雷克获得藏宝图后开启冒险。 | ✅ Pass |
 | 5 | 风暴之翼 | Storm Wind | tmp/native32_game/EACT/ESTORM.smf | ![风暴之翼](images/EACT/ESTORM.png) | 纵版射击（STG）游戏。王牌飞行员 Jason 和 Blanche 深入 239 区侦察，遭遇敌方终极战机及隐藏秘密武器。 | ✅ Pass |
 | 6 | 小美人鱼 | Little Mermaid | tmp/native32_game/EACT/LittleMe.smf | ![小美人鱼](images/EACT/LittleMe.png) | 水下主题冒险游戏，控制小美人鱼在海底世界冒险。 | ✅ Pass |
 | 7 | 失落之剑 | Lost Sword | tmp/native32_game/EACT/LostSwor.smf | ![失落之剑](images/EACT/LostSwor.png) | 剑与魔法的奇幻动作冒险游戏，寻找失落的神剑，对抗黑暗势力。 | ✅ Pass |
 | 8 | 鼓舞 | Music Game | tmp/native32_game/EACT/MusicGam.smf | ![鼓舞](images/EACT/MusicGam.png) | 音乐游戏，相当于劲舞团一样的玩法，但操作较其简单，跟随节奏提示按下方向键。 | ✅ Pass |
-| 9 | 波波气球 | PoPo Fun | tmp/native32_game/EACT/PoPoFun.smf | ![波波气球](images/EACT/PoPoFun.png) | 经典的踩气球游戏，控制主角用脚踩爆敌人头顶气球来消灭对手。 | ✅ Pass |
+| 9 | 泡泡精灵 | PoPo Fun | tmp/native32_game/EACT/PoPoFun.smf | ![泡泡精灵](images/EACT/PoPoFun.png) | 经典的踩气球游戏，控制主角用脚踩爆敌人头顶气球来消灭对手。 | ✅ Pass |
 | 10 | 少林厨房 | ShaoLin Kitchen | tmp/native32_game/EACT/ShaoLinK.smf | ![少林功夫](images/EACT/ShaoLinK.png) | 少林主题趣味小游戏，施展功夫接住飞碗。 | ✅ Pass |
 | 11 | 三只小猪 | Three Pigs | tmp/native32_game/EACT/ThreePig.smf | ![三只小猪](images/EACT/ThreePig.png) | 射箭防守游戏，控制小猪用弓箭抵御大灰狼的进攻，保护家园。 | ✅ Pass |
 
@@ -28,17 +28,17 @@ All 84 Native32 games in the test suite load and run without fatal errors. Each 
 
 | # | 游戏名 | 英文名 | 文件名 | 图片 | 游戏介绍 |状态|
 |---|--------|--------|--------|------|----------|--------|
-| 1 | 二一加法 | Adding 21 | tmp/native32_game/EELA/Adding21.smf | ![二一加法](images/EELA/Adding21.png) | 数学加法练习游戏，通过趣味互动学习加法运算。 | ✅ Pass |
+| 1 | 凑21 | Adding 21 | tmp/native32_game/EELA/Adding21.smf | ![凑21](images/EELA/Adding21.png) | 数学加法练习游戏，通过趣味互动学习加法运算。 | ✅ Pass |
 | 2 | 字母排序 | Alphabetical Order | tmp/native32_game/EELA/AlpOrder.smf | ![字母排序](images/EELA/AlpOrder.png) | 字母排序学习游戏，练习英文字母的正确顺序。 | ✅ Pass |
 | 3 | 动物朋友 | Animal Friends | tmp/native32_game/EELA/AnimalFr.smf | ![动物朋友](images/EELA/AnimalFr.png) | 动物认知学习游戏，认识各种动物朋友。 | ✅ Pass |
-| 4 | 认识动物 | Recognize Animals 1 | tmp/native32_game/EELA/Animals1.smf | ![认识动物](images/EELA/Animals1.png) | 动物认知学习游戏，通过图片认识各种动物。 | ✅ Pass |
+| 4 | 认识动物1 | Recognize Animals 1 | tmp/native32_game/EELA/Animals1.smf | ![认识动物1](images/EELA/Animals1.png) | 动物认知学习游戏，通过图片认识各种动物。 | ✅ Pass |
 | 5 | 认识动物 2 | Recognize Animals 2 | tmp/native32_game/EELA/Animals2.smf | ![认识动物 2](images/EELA/Animals2.png) | 动物认知学习游戏（第二辑），认识更多种类的动物。 | ✅ Pass |
 | 6 | 小鸡回家 | Chickling Go Home | tmp/native32_game/EELA/Chicklin.smf | ![小鸡回家](images/EELA/Chicklin.png) | 关于简单加减乘除运算正误判断的练习，适合多个年龄层幼儿，判断数学等式是否正确。 | ✅ Pass |
 | 7 | 颜色匹配 | Colors Matching | tmp/native32_game/EELA/ColorsMa.smf | ![颜色匹配](images/EELA/ColorsMa.png) | 颜色配对学习游戏，通过匹配颜色学习辨识不同色彩。 | ✅ Pass |
-| 8 | 综合算术 |Comprehensive Arithmetic | tmp/native32_game/EELA/Comprehe.smf | ![综合算术](images/EELA/Comprehe.png) | 综合算术小游戏，解答各类算术谜题，锻炼运算能力。 | ✅ Pass |
+| 8 | 综合算术 | Comprehensive Arithmetic | tmp/native32_game/EELA/Comprehe.smf | ![综合算术](images/EELA/Comprehe.png) | 综合算术小游戏，解答各类算术谜题，锻炼运算能力。 | ✅ Pass |
 | 9 | 数字猎人 | DigiHunter | tmp/native32_game/EELA/DigiHunt.smf | ![数字猎人](images/EELA/DigiHunt.png) | 数字猎人游戏，在星空背景下寻找并收集数字。 | ✅ Pass |
-| 10 | 找出极值 | Find the Most | tmp/native32_game/EELA/FindTheM.smf | ![找匹配](images/EELA/FindTheM.png) | 数量比较游戏，在嘉年华场景中找出数量最多的物品。 | ✅ Pass |
-| 11 | 认识水果 | Recognize Fruits I | tmp/native32_game/EELA/Fruits1.smf | ![认识水果](images/EELA/Fruits1.png) | 水果主题学习游戏，通过趣味互动认识各种水果。 | ✅ Pass |
+| 10 | 找出最多 | Find the Most | tmp/native32_game/EELA/FindTheM.smf | ![找出最多](images/EELA/FindTheM.png) | 数量比较游戏，在嘉年华场景中找出数量最多的物品。 | ✅ Pass |
+| 11 | 认识水果1 | Recognize Fruits I | tmp/native32_game/EELA/Fruits1.smf | ![认识水果1](images/EELA/Fruits1.png) | 水果主题学习游戏，通过趣味互动认识各种水果。 | ✅ Pass |
 | 12 | 认识水果 2 | Recognize Fruits II | tmp/native32_game/EELA/Fruits2.smf | ![认识水果 2](images/EELA/Fruits2.png) | 水果认知学习游戏（第二辑），认识更多种类的水果。 | ✅ Pass |
 | 13 | 地理初识 | Learning Geography | tmp/native32_game/EELA/Geograph.smf | ![地理初识](images/EELA/Geograph.png) | 地理知识学习游戏，通过互动学习世界地理知识。 | ✅ Pass |
 | 14 | 生活常识 | Living Tips | tmp/native32_game/EELA/LivingTi.smf | ![生活常识](images/EELA/LivingTi.png) | 生活常识学习游戏，认识各种生物及其特征。 | ✅ Pass |
@@ -66,9 +66,9 @@ All 84 Native32 games in the test suite load and run without fatal errors. Each 
 | # | 游戏名 | 英文名 | 文件名 | 图片 | 游戏介绍 |状态|
 |---|--------|--------|--------|------|----------|--------|
 | 1 | 赤刃 | Bloody Blade | tmp/native32_game/EPOP/EBBLADE.smf | ![赤刃](images/EPOP/EBBLADE.png) | 经典的横版动作过关（ACT）游戏。赤刃一族被灭族，20 年后幸存的后裔女刺客开始复仇之旅。 | ✅ Pass |
-| 2 | 极速任务 | Express | tmp/native32_game/EPOP/EExpress.smf | ![极速任务](images/EPOP/EExpress.png) | 类赛车多角色游戏，含城市、高速、荒野、F1 赛道场景，有障碍物和道具。 | ✅ Pass |
+| 2 | 极速任务 | Mission Express | tmp/native32_game/EPOP/EExpress.smf | ![极速任务](images/EPOP/EExpress.png) | 类赛车多角色游戏，含城市、高速、荒野、F1 赛道场景，有障碍物和道具。 | ✅ Pass |
 | 3 | 枪火 | Gun Fire | tmp/native32_game/EPOP/EGUNFIRE.smf | ![枪火](images/EPOP/EGUNFIRE.png) | 横版射击（STG）游戏。骑上心爱的机车，拿起火枪，在枪火纷飞的世界去打击黑社会，对抗独裁者，消灭生化怪兽。 | ✅ Pass |
-| 4 | 合金风暴 | Metal Storm | tmp/native32_game/EPOP/EMETAL.smf | ![合金风暴](images/EPOP/EMETAL.png) | 四向自由卷轴射击游戏。游戏虚构了一个近未来的世界，军事科技以现实世界科技为基础有一定发展，武器与现实世界相似。 | ✅ Pass |
+| 4 | 钢铁风暴 | Metal Storm | tmp/native32_game/EPOP/EMETAL.smf | ![钢铁风暴](images/EPOP/EMETAL.png) | 四向自由卷轴射击游戏。游戏虚构了一个近未来的世界，军事科技以现实世界科技为基础有一定发展，武器与现实世界相似。 | ✅ Pass |
 | 5 | 海盗 | Pirate | tmp/native32_game/EPOP/Epirate.smf | ![海盗](images/EPOP/Epirate.png) | 以"炸弹人"为原型的休闲桌面（PUZ）游戏。小海盗雷克获得藏宝图后开启冒险。 | ✅ Pass |
 | 6 | 符文之语 | Rune Word | tmp/native32_game/EPOP/ERuneWod.smf | ![符文之语](images/EPOP/ERuneWod.png) | 类似于对对碰的游戏。年轻的魔法学徒艾莉进入炼金房修炼，在大魔导师雷斯林的指导下学习一个又一个的魔法。各种符文代表不同属性的魔力。 | ✅ Pass |
 | 7 | 风暴之翼 | Storm Wind | tmp/native32_game/EPOP/ESTORM.smf | ![风暴之翼](images/EPOP/ESTORM.png) | 纵版射击（STG）游戏。王牌飞行员 Jason 和 Blanche 深入 239 区侦察，遭遇敌方终极战机及隐藏秘密武器。 | ✅ Pass |
