@@ -8,7 +8,7 @@ use super::constants::*;
 use super::types::*;
 use native32emu_core::emulator::Emulator;
 use native32emu_core::input_handler::InputHandler;
-use std::ffi::{c_void, CStr};
+use std::ffi::{c_char, c_void, CStr};
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -122,7 +122,7 @@ pub extern "C" fn retro_get_system_info(info: *mut retro_system_info) {
     unsafe {
         (*info) = retro_system_info {
             library_name: c"Native32Emu".as_ptr(),
-            library_version: c"1.4.0".as_ptr(),
+            library_version: concat!(env!("CARGO_PKG_VERSION"), "\0").as_ptr() as *const c_char,
             valid_extensions: c"smf|sgm|ssl|zip".as_ptr(),
             need_fullpath: true,
             // A .zip is a complete Native32 game package; the core extracts it
