@@ -28,6 +28,26 @@ unsafe fn get_emulator_mut() -> &'static mut Emulator {
     EMULATOR.as_mut().expect("Emulator not initialized")
 }
 
+/// Run `body`, turning a panic into `fallback`.
+///
+/// A panic must never unwind across the C ABI: the frontend is a host process
+/// (RetroArch, a mobile app) that would be torn down with us. Swallowing the
+/// panic keeps the session recoverable and leaves a log entry behind.
+fn guard<T>(fallback: T, body: impl FnOnce() -> T) -> T {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(body)) {
+        Ok(value) => value,
+        Err(payload) => {
+            let detail = payload
+                .downcast_ref::<&str>()
+                .map(|text| (*text).to_owned())
+                .or_else(|| payload.downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "unknown panic".to_owned());
+            log::error!("Native32Emu libretro entry point panicked: {detail}");
+            fallback
+        }
+    }
+}
+
 // ============================================================
 // Startup functions
 // ============================================================
@@ -126,7 +146,7 @@ pub extern "C" fn retro_set_controller_port_device(_port: u32, _device: u32) {
 /// Load a game
 #[no_mangle]
 pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
-    unsafe {
+    guard(false, || unsafe {
         RETURN_BUTTON_DOWN.store(false, Ordering::Relaxed);
         let game_info = &*info;
 
@@ -199,7 +219,7 @@ pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
                 "Native32: failed to load this game.\n{e}\n\nSupported content: .smf, .sgm, .ssl or a .zip game package."
             )),
         }
-    }
+    })
 }
 
 /// Report a load failure to both the log and the frontend's on-screen message.
@@ -222,7 +242,7 @@ pub extern "C" fn retro_unload_game() {
 /// Get system audio-video information
 #[no_mangle]
 pub extern "C" fn retro_get_system_av_info(info: *mut retro_system_av_info) {
-    unsafe {
+    guard((), || unsafe {
         let emu = get_emulator();
         let (width, height) = emu.get_resolution();
         let sample_rate = emu.get_audio_sample_rate();
@@ -240,13 +260,13 @@ pub extern "C" fn retro_get_system_av_info(info: *mut retro_system_av_info) {
                 sample_rate,
             },
         };
-    }
+    })
 }
 
 /// Run one frame of the emulator
 #[no_mangle]
 pub extern "C" fn retro_run() {
-    unsafe {
+    guard((), || unsafe {
         let emu = get_emulator_mut();
 
         // 0. Re-apply core options if the user changed them in the frontend menu.
@@ -309,7 +329,7 @@ pub extern "C" fn retro_run() {
                 audio_samples.len() / 2, // Stereo: 2 samples per frame
             );
         }
-    }
+    })
 }
 
 /// Reset the game
@@ -347,7 +367,7 @@ pub extern "C" fn retro_serialize_size() -> usize {
 /// Serialize the emulator state
 #[no_mangle]
 pub extern "C" fn retro_serialize(data: *mut c_void, size: usize) -> bool {
-    unsafe {
+    guard(false, || unsafe {
         match EMULATOR.as_mut() {
             Some(emu) => {
                 if size < emu.serialize_size() {
@@ -358,13 +378,13 @@ pub extern "C" fn retro_serialize(data: *mut c_void, size: usize) -> bool {
             }
             None => false,
         }
-    }
+    })
 }
 
 /// Deserialize the emulator state
 #[no_mangle]
 pub extern "C" fn retro_unserialize(data: *const c_void, size: usize) -> bool {
-    unsafe {
+    guard(false, || unsafe {
         match EMULATOR.as_mut() {
             Some(emu) => {
                 let buffer = std::slice::from_raw_parts(data as *const u8, size);
@@ -372,7 +392,7 @@ pub extern "C" fn retro_unserialize(data: *const c_void, size: usize) -> bool {
             }
             None => false,
         }
-    }
+    })
 }
 
 // ============================================================
