@@ -22,9 +22,16 @@ fn timeline_sound_value(index: u16, loop_count: i16) -> u16 {
     (repeat << 8) | (index & 0xFF)
 }
 
+/// A suspended parent application on the return stack.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ReturnFrame {
     path: PathBuf,
+    /// The `SaveContext` string the parent menu saved before launching the
+    /// child. When the parent is reloaded, the value is served back through
+    /// its `GetContext` call so the menu's own restore branch rebuilds its
+    /// view at the position it suspended from (the real device's flow: the
+    /// menu shell is relaunched after a game exits and replays the context).
+    menu_context: Option<String>,
 }
 
 /// The platform-independent emulator core.
@@ -178,7 +185,7 @@ impl Emulator {
             return Ok(false);
         };
 
-        self.load_path(frame.path)?;
+        self.load_path(frame.path, frame.menu_context)?;
         self.return_stack.pop();
         Ok(true)
     }
@@ -186,12 +193,12 @@ impl Emulator {
     /// Reload the emulator from the given file path, performing a full state
     /// reset and starting a new navigation session.
     pub fn reload_from_path(&mut self, path: PathBuf) -> Result<()> {
-        self.load_path(path)?;
+        self.load_path(path, None)?;
         self.return_stack.clear();
         Ok(())
     }
 
-    fn load_path(&mut self, path: PathBuf) -> Result<()> {
+    fn load_path(&mut self, path: PathBuf, menu_context: Option<String>) -> Result<()> {
         let data = std::fs::read(&path)
             .with_context(|| format!("Failed to read game file: {}", path.display()))?;
         let mut reader = Native32Reader::new(data);
@@ -209,7 +216,8 @@ impl Emulator {
         self.vm = ActionVM::new();
         self.content_loader = ContentLoader::new();
         self.cur_frame_objects.clear();
-        self.menu_context = None;
+        // `Some` restores a suspended parent's context; `None` starts fresh.
+        self.menu_context = menu_context;
         self.session_path = path.clone();
         self.filename = path;
         self.reader = reader;
@@ -735,6 +743,7 @@ impl Emulator {
         let return_frame =
             should_push_return_frame(kind, &self.filename, &fullpath).then(|| ReturnFrame {
                 path: self.filename.clone(),
+                menu_context: self.menu_context.clone(),
             });
 
         // A game chosen from a menu is what a frontend reset must restart,
@@ -764,6 +773,8 @@ impl Emulator {
         self.content_root = new_content_root;
         if let Some(frame) = return_frame {
             self.return_stack.push(frame);
+            // The context now belongs to the suspended parent frame; the
+            // running child starts without one.
             self.menu_context = None;
         }
         self.filename = fullpath;
@@ -791,7 +802,7 @@ impl Emulator {
     /// is currently running.
     pub fn reset(&mut self) {
         let path = self.session_path.clone();
-        if let Err(err) = self.load_path(path) {
+        if let Err(err) = self.load_path(path, None) {
             log::error!("Failed to restart game content: {err:#}");
         }
     }
@@ -865,7 +876,12 @@ impl Emulator {
                     if !has_extension(&path, "smf") {
                         anyhow::bail!("save-state return target is not an SMF file");
                     }
-                    Ok(ReturnFrame { path })
+                    // Menu contexts are session-only: a save state restores
+                    // the return targets, and each parent menu boots fresh.
+                    Ok(ReturnFrame {
+                        path,
+                        menu_context: None,
+                    })
                 })
                 .collect::<Result<Vec<_>>>()?
         } else if !self.return_stack.is_empty() {
@@ -875,6 +891,7 @@ impl Emulator {
             // Old ZIP save states relied on the package entry point implicitly.
             vec![ReturnFrame {
                 path: self.filename.clone(),
+                menu_context: None,
             }]
         } else {
             Vec::new()

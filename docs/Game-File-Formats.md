@@ -369,7 +369,7 @@ EPUZ/ESUDOKU.smf  ←→  EPUZ/ESUDOKU.dat
 | `FormateStr`（`<精灵>+<对齐>+<文本>`） | 把文本渲染到精灵的透明文字槽中 |
 | `FHUI_StrSub` / `FHUI_SubStrNum` | 拆分 / 统计菜单路径字段 |
 | `StartGame`（`<路径>`） | 加载并运行所选游戏的 `.smf` |
-| `GetContext` / `SaveContext` | 读取 / 保存菜单导航状态 |
+| `GetContext` / `SaveContext` | 读取 / 保存菜单导航状态：菜单在 `StartGame` 前保存，宿主返回父菜单重载时回传，菜单据此恢复原视图 |
 
 > **注意：** 英文版 `FHUI` 的菜单文字已预渲染在 `.dat` 图像中，`FormateStr` 只用于清空
 > 标签（传入空文本时不改动精灵）。
