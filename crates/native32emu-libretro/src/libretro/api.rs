@@ -353,12 +353,38 @@ pub extern "C" fn retro_get_region() -> u32 {
 // Serialization functions (save states)
 // ============================================================
 
+/// Save-state envelope: 4-byte magic followed by a little-endian format
+/// version. Bump the version whenever the core's state layout changes so stale
+/// states are rejected instead of silently restoring into the wrong fields.
+const SAVE_STATE_MAGIC: [u8; 4] = *b"N32S";
+const SAVE_STATE_FORMAT: u32 = 1;
+const SAVE_STATE_HEADER_LEN: usize = SAVE_STATE_MAGIC.len() + std::mem::size_of::<u32>();
+
+fn write_save_state_header(buffer: &mut [u8]) {
+    buffer[..SAVE_STATE_MAGIC.len()].copy_from_slice(&SAVE_STATE_MAGIC);
+    buffer[SAVE_STATE_MAGIC.len()..SAVE_STATE_HEADER_LEN]
+        .copy_from_slice(&SAVE_STATE_FORMAT.to_le_bytes());
+}
+
+/// Returns `Some(payload)` when the envelope matches this build's format.
+fn read_save_state_payload(data: &[u8]) -> Option<&[u8]> {
+    if data.len() < SAVE_STATE_HEADER_LEN || data[..SAVE_STATE_MAGIC.len()] != SAVE_STATE_MAGIC {
+        return None;
+    }
+    let version = u32::from_le_bytes(
+        data[SAVE_STATE_MAGIC.len()..SAVE_STATE_HEADER_LEN]
+            .try_into()
+            .ok()?,
+    );
+    (version == SAVE_STATE_FORMAT).then(|| &data[SAVE_STATE_HEADER_LEN..])
+}
+
 /// Get the size needed for serialization
 #[no_mangle]
 pub extern "C" fn retro_serialize_size() -> usize {
     unsafe {
         match EMULATOR.as_ref() {
-            Some(emu) => emu.serialize_size(),
+            Some(emu) => emu.serialize_size() + SAVE_STATE_HEADER_LEN,
             None => 0,
         }
     }
@@ -370,11 +396,12 @@ pub extern "C" fn retro_serialize(data: *mut c_void, size: usize) -> bool {
     guard(false, || unsafe {
         match EMULATOR.as_mut() {
             Some(emu) => {
-                if size < emu.serialize_size() {
+                if data.is_null() || size < emu.serialize_size() + SAVE_STATE_HEADER_LEN {
                     return false;
                 }
                 let buffer = std::slice::from_raw_parts_mut(data as *mut u8, size);
-                emu.serialize(buffer).is_ok()
+                write_save_state_header(buffer);
+                emu.serialize(&mut buffer[SAVE_STATE_HEADER_LEN..]).is_ok()
             }
             None => false,
         }
@@ -387,8 +414,15 @@ pub extern "C" fn retro_unserialize(data: *const c_void, size: usize) -> bool {
     guard(false, || unsafe {
         match EMULATOR.as_mut() {
             Some(emu) => {
+                if data.is_null() {
+                    return false;
+                }
                 let buffer = std::slice::from_raw_parts(data as *const u8, size);
-                emu.deserialize(buffer).is_ok()
+                let Some(payload) = read_save_state_payload(buffer) else {
+                    log::warn!("Rejecting save state with an unknown format or version");
+                    return false;
+                };
+                emu.deserialize(payload).is_ok()
             }
             None => false,
         }
@@ -847,6 +881,32 @@ mod tests {
                 assert_eq!(position(&emu), moved, "analog movement differs from D-pad");
             }
         }
+    }
+
+    #[test]
+    fn save_state_envelope_rejects_other_versions() {
+        let mut buffer = [0_u8; SAVE_STATE_HEADER_LEN + 3];
+        buffer[SAVE_STATE_HEADER_LEN..].copy_from_slice(&[1, 2, 3]);
+        write_save_state_header(&mut buffer);
+        assert_eq!(
+            read_save_state_payload(&buffer),
+            Some(&[1_u8, 2, 3][..]),
+            "a freshly written envelope must be accepted"
+        );
+
+        buffer[SAVE_STATE_MAGIC.len()] = 0xFF;
+        assert_eq!(
+            read_save_state_payload(&buffer),
+            None,
+            "a state from another format version must be rejected"
+        );
+
+        let truncated = [0_u8; SAVE_STATE_HEADER_LEN - 1];
+        assert_eq!(
+            read_save_state_payload(&truncated),
+            None,
+            "a buffer shorter than the envelope must be rejected"
+        );
     }
 
     #[test]
