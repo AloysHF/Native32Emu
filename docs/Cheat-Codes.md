@@ -23,7 +23,7 @@ the [standalone emulator](Standalone-Emulator.md#cheats) and the
 |---|---|---|
 | Health lock | `var:pl_hp=60` | Keeps the player health variable at 60 |
 
-## Storm (风暴之翼)
+## Storm Wind (风暴之翼)
 
 | Effect | Code | Notes |
 |---|---|---|
