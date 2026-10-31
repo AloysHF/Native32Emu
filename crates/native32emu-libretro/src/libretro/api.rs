@@ -191,9 +191,9 @@ pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
                 );
                 // Apply the user's current core option selections.
                 apply_core_options(&mut emu);
-                // In the browser the content lives in a throwaway MEMFS tree;
-                // write saves to the frontend's persistent (IndexedDB) mount.
-                #[cfg(target_os = "emscripten")]
+                // Content may live in a throwaway location (a browser MEMFS tree
+                // or an Android app cache copy of a SAF document), so always
+                // write game saves into the frontend's persistent save directory.
                 emu.set_save_directory(callbacks::save_directory().map(std::path::PathBuf::from));
                 EMULATOR = Some(emu);
                 true
