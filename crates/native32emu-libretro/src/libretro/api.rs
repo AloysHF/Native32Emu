@@ -132,15 +132,13 @@ pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
 
         // Check if path is valid
         if game_info.path.is_null() {
-            log::error!("Game path is null");
-            return false;
+            return fail("Native32: the frontend passed no content path.");
         }
 
         let path = match CStr::from_ptr(game_info.path).to_str() {
             Ok(p) => p,
             Err(e) => {
-                log::error!("Invalid game path: {}", e);
-                return false;
+                return fail(&format!("Native32: the content path is not valid UTF-8 ({e})."));
             }
         };
         let requested = std::path::PathBuf::from(path);
@@ -165,8 +163,7 @@ pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
             &pixel_format as *const _ as *mut c_void,
         );
         if !success {
-            log::error!("Failed to set pixel format");
-            return false;
+            return fail("Native32: this frontend does not support XRGB8888 video.");
         }
 
         // Register input descriptors
@@ -198,12 +195,18 @@ pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
                 EMULATOR = Some(emu);
                 true
             }
-            Err(e) => {
-                log::error!("Failed to load game: {}", e);
-                false
-            }
+            Err(e) => fail(&format!(
+                "Native32: failed to load this game.\n{e}\n\nSupported content: .smf, .sgm, .ssl or a .zip game package."
+            )),
         }
     }
+}
+
+/// Report a load failure to both the log and the frontend's on-screen message.
+fn fail(message: &str) -> bool {
+    log::error!("{message}");
+    callbacks::show_message(message, 240);
+    false
 }
 
 /// Unload the current game
