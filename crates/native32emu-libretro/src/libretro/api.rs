@@ -8,7 +8,7 @@ use super::constants::*;
 use super::types::*;
 use native32emu_core::emulator::Emulator;
 use native32emu_core::input_handler::InputHandler;
-use std::ffi::{c_void, CStr};
+use std::ffi::{c_char, c_void, CStr};
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -26,6 +26,26 @@ unsafe fn get_emulator() -> &'static Emulator {
 /// Get a mutable reference to the emulator
 unsafe fn get_emulator_mut() -> &'static mut Emulator {
     EMULATOR.as_mut().expect("Emulator not initialized")
+}
+
+/// Run `body`, turning a panic into `fallback`.
+///
+/// A panic must never unwind across the C ABI: the frontend is a host process
+/// (RetroArch, a mobile app) that would be torn down with us. Swallowing the
+/// panic keeps the session recoverable and leaves a log entry behind.
+fn guard<T>(fallback: T, body: impl FnOnce() -> T) -> T {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(body)) {
+        Ok(value) => value,
+        Err(payload) => {
+            let detail = payload
+                .downcast_ref::<&str>()
+                .map(|text| (*text).to_owned())
+                .or_else(|| payload.downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "unknown panic".to_owned());
+            log::error!("Native32Emu libretro entry point panicked: {detail}");
+            fallback
+        }
+    }
 }
 
 // ============================================================
@@ -102,7 +122,7 @@ pub extern "C" fn retro_get_system_info(info: *mut retro_system_info) {
     unsafe {
         (*info) = retro_system_info {
             library_name: c"Native32Emu".as_ptr(),
-            library_version: c"1.4.0".as_ptr(),
+            library_version: concat!(env!("CARGO_PKG_VERSION"), "\0").as_ptr() as *const c_char,
             valid_extensions: c"smf|sgm|ssl|zip".as_ptr(),
             need_fullpath: true,
             // A .zip is a complete Native32 game package; the core extracts it
@@ -126,21 +146,19 @@ pub extern "C" fn retro_set_controller_port_device(_port: u32, _device: u32) {
 /// Load a game
 #[no_mangle]
 pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
-    unsafe {
+    guard(false, || unsafe {
         RETURN_BUTTON_DOWN.store(false, Ordering::Relaxed);
         let game_info = &*info;
 
         // Check if path is valid
         if game_info.path.is_null() {
-            log::error!("Game path is null");
-            return false;
+            return fail("Native32: the frontend passed no content path.");
         }
 
         let path = match CStr::from_ptr(game_info.path).to_str() {
             Ok(p) => p,
             Err(e) => {
-                log::error!("Invalid game path: {}", e);
-                return false;
+                return fail(&format!("Native32: the content path is not valid UTF-8 ({e})."));
             }
         };
         let requested = std::path::PathBuf::from(path);
@@ -165,8 +183,7 @@ pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
             &pixel_format as *const _ as *mut c_void,
         );
         if !success {
-            log::error!("Failed to set pixel format");
-            return false;
+            return fail("Native32: this frontend does not support XRGB8888 video.");
         }
 
         // Register input descriptors
@@ -191,19 +208,25 @@ pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
                 );
                 // Apply the user's current core option selections.
                 apply_core_options(&mut emu);
-                // In the browser the content lives in a throwaway MEMFS tree;
-                // write saves to the frontend's persistent (IndexedDB) mount.
-                #[cfg(target_os = "emscripten")]
+                // Content may live in a throwaway location (a browser MEMFS tree
+                // or an Android app cache copy of a SAF document), so always
+                // write game saves into the frontend's persistent save directory.
                 emu.set_save_directory(callbacks::save_directory().map(std::path::PathBuf::from));
                 EMULATOR = Some(emu);
                 true
             }
-            Err(e) => {
-                log::error!("Failed to load game: {}", e);
-                false
-            }
+            Err(e) => fail(&format!(
+                "Native32: failed to load this game.\n{e}\n\nSupported content: .smf, .sgm, .ssl or a .zip game package."
+            )),
         }
-    }
+    })
+}
+
+/// Report a load failure to both the log and the frontend's on-screen message.
+fn fail(message: &str) -> bool {
+    log::error!("{message}");
+    callbacks::show_message(message, 240);
+    false
 }
 
 /// Unload the current game
@@ -219,7 +242,7 @@ pub extern "C" fn retro_unload_game() {
 /// Get system audio-video information
 #[no_mangle]
 pub extern "C" fn retro_get_system_av_info(info: *mut retro_system_av_info) {
-    unsafe {
+    guard((), || unsafe {
         let emu = get_emulator();
         let (width, height) = emu.get_resolution();
         let sample_rate = emu.get_audio_sample_rate();
@@ -237,13 +260,13 @@ pub extern "C" fn retro_get_system_av_info(info: *mut retro_system_av_info) {
                 sample_rate,
             },
         };
-    }
+    })
 }
 
 /// Run one frame of the emulator
 #[no_mangle]
 pub extern "C" fn retro_run() {
-    unsafe {
+    guard((), || unsafe {
         let emu = get_emulator_mut();
 
         // 0. Re-apply core options if the user changed them in the frontend menu.
@@ -306,7 +329,7 @@ pub extern "C" fn retro_run() {
                 audio_samples.len() / 2, // Stereo: 2 samples per frame
             );
         }
-    }
+    })
 }
 
 /// Reset the game
@@ -330,12 +353,38 @@ pub extern "C" fn retro_get_region() -> u32 {
 // Serialization functions (save states)
 // ============================================================
 
+/// Save-state envelope: 4-byte magic followed by a little-endian format
+/// version. Bump the version whenever the core's state layout changes so stale
+/// states are rejected instead of silently restoring into the wrong fields.
+const SAVE_STATE_MAGIC: [u8; 4] = *b"N32S";
+const SAVE_STATE_FORMAT: u32 = 1;
+const SAVE_STATE_HEADER_LEN: usize = SAVE_STATE_MAGIC.len() + std::mem::size_of::<u32>();
+
+fn write_save_state_header(buffer: &mut [u8]) {
+    buffer[..SAVE_STATE_MAGIC.len()].copy_from_slice(&SAVE_STATE_MAGIC);
+    buffer[SAVE_STATE_MAGIC.len()..SAVE_STATE_HEADER_LEN]
+        .copy_from_slice(&SAVE_STATE_FORMAT.to_le_bytes());
+}
+
+/// Returns `Some(payload)` when the envelope matches this build's format.
+fn read_save_state_payload(data: &[u8]) -> Option<&[u8]> {
+    if data.len() < SAVE_STATE_HEADER_LEN || data[..SAVE_STATE_MAGIC.len()] != SAVE_STATE_MAGIC {
+        return None;
+    }
+    let version = u32::from_le_bytes(
+        data[SAVE_STATE_MAGIC.len()..SAVE_STATE_HEADER_LEN]
+            .try_into()
+            .ok()?,
+    );
+    (version == SAVE_STATE_FORMAT).then(|| &data[SAVE_STATE_HEADER_LEN..])
+}
+
 /// Get the size needed for serialization
 #[no_mangle]
 pub extern "C" fn retro_serialize_size() -> usize {
     unsafe {
         match EMULATOR.as_ref() {
-            Some(emu) => emu.serialize_size(),
+            Some(emu) => emu.serialize_size() + SAVE_STATE_HEADER_LEN,
             None => 0,
         }
     }
@@ -344,32 +393,40 @@ pub extern "C" fn retro_serialize_size() -> usize {
 /// Serialize the emulator state
 #[no_mangle]
 pub extern "C" fn retro_serialize(data: *mut c_void, size: usize) -> bool {
-    unsafe {
+    guard(false, || unsafe {
         match EMULATOR.as_mut() {
             Some(emu) => {
-                if size < emu.serialize_size() {
+                if data.is_null() || size < emu.serialize_size() + SAVE_STATE_HEADER_LEN {
                     return false;
                 }
                 let buffer = std::slice::from_raw_parts_mut(data as *mut u8, size);
-                emu.serialize(buffer).is_ok()
+                write_save_state_header(buffer);
+                emu.serialize(&mut buffer[SAVE_STATE_HEADER_LEN..]).is_ok()
             }
             None => false,
         }
-    }
+    })
 }
 
 /// Deserialize the emulator state
 #[no_mangle]
 pub extern "C" fn retro_unserialize(data: *const c_void, size: usize) -> bool {
-    unsafe {
+    guard(false, || unsafe {
         match EMULATOR.as_mut() {
             Some(emu) => {
+                if data.is_null() {
+                    return false;
+                }
                 let buffer = std::slice::from_raw_parts(data as *const u8, size);
-                emu.deserialize(buffer).is_ok()
+                let Some(payload) = read_save_state_payload(buffer) else {
+                    log::warn!("Rejecting save state with an unknown format or version");
+                    return false;
+                };
+                emu.deserialize(payload).is_ok()
             }
             None => false,
         }
-    }
+    })
 }
 
 // ============================================================
@@ -824,6 +881,32 @@ mod tests {
                 assert_eq!(position(&emu), moved, "analog movement differs from D-pad");
             }
         }
+    }
+
+    #[test]
+    fn save_state_envelope_rejects_other_versions() {
+        let mut buffer = [0_u8; SAVE_STATE_HEADER_LEN + 3];
+        buffer[SAVE_STATE_HEADER_LEN..].copy_from_slice(&[1, 2, 3]);
+        write_save_state_header(&mut buffer);
+        assert_eq!(
+            read_save_state_payload(&buffer),
+            Some(&[1_u8, 2, 3][..]),
+            "a freshly written envelope must be accepted"
+        );
+
+        buffer[SAVE_STATE_MAGIC.len()] = 0xFF;
+        assert_eq!(
+            read_save_state_payload(&buffer),
+            None,
+            "a state from another format version must be rejected"
+        );
+
+        let truncated = [0_u8; SAVE_STATE_HEADER_LEN - 1];
+        assert_eq!(
+            read_save_state_payload(&truncated),
+            None,
+            "a buffer shorter than the envelope must be rejected"
+        );
     }
 
     #[test]
