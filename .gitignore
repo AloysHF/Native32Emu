@@ -4,7 +4,7 @@ target/
 .codegraph/
 .claude/
 .vscode/
-CLAUDE.md
+AGENTS.md
 
 # Locally built/renamed libretro core artifacts in the repo root
 /native32emu_libretro.dll
