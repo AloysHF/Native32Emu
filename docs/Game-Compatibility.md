@@ -21,7 +21,7 @@ All 84 Native32 games in the test suite load and run without fatal errors. Each 
 | 7 | 失落之剑 | Lost Sword | tmp/native32_game/EACT/LostSwor.smf | ![失落之剑](images/EACT/LostSwor.png) | 剑与魔法的奇幻动作冒险游戏，寻找失落的神剑，对抗黑暗势力。 | ✅ Pass |
 | 8 | 鼓舞 | Music Game | tmp/native32_game/EACT/MusicGam.smf | ![鼓舞](images/EACT/MusicGam.png) | 音乐游戏，相当于劲舞团一样的玩法，但操作较其简单，跟随节奏提示按下方向键。 | ✅ Pass |
 | 9 | 泡泡精灵 | PoPo Fun | tmp/native32_game/EACT/PoPoFun.smf | ![泡泡精灵](images/EACT/PoPoFun.png) | 经典的踩气球游戏，控制主角用脚踩爆敌人头顶气球来消灭对手。 | ✅ Pass |
-| 10 | 少林厨房 | ShaoLin Kitchen | tmp/native32_game/EACT/ShaoLinK.smf | ![少林功夫](images/EACT/ShaoLinK.png) | 少林主题趣味小游戏，施展功夫接住飞碗。 | ✅ Pass |
+| 10 | 少林厨房 | ShaoLin Kitchen | tmp/native32_game/EACT/ShaoLinK.smf | ![少林厨房](images/EACT/ShaoLinK.png) | 少林主题趣味小游戏，施展功夫接住飞碗。 | ✅ Pass |
 | 11 | 三只小猪 | Three Pigs | tmp/native32_game/EACT/ThreePig.smf | ![三只小猪](images/EACT/ThreePig.png) | 射箭防守游戏，控制小猪用弓箭抵御大灰狼的进攻，保护家园。 | ✅ Pass |
 
 ## EELA — Educational Games (32 games)
