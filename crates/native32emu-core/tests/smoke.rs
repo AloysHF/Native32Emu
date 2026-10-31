@@ -580,6 +580,67 @@ fn zh_fhui_root_lists_menu_file_and_binds_game_thumbnails() {
     );
 }
 
+/// Returning from a game launched from the Chinese FHUI menu must restore the
+/// category view with the suspended selection and re-bind its thumbnail.
+#[test]
+#[ignore = "requires local Chinese Native32 game assets (set NATIVE32_ZH_GAME_DIR)"]
+fn zh_fhui_menu_restores_selection_after_return() {
+    let dir = match zh_game_dir() {
+        Some(d) => d,
+        None => {
+            eprintln!(
+                "skipping: no Chinese game directory found                  (set NATIVE32_ZH_GAME_DIR or place games in <repo>/tmp/native32_game_zh)"
+            );
+            return;
+        }
+    };
+    let menu = dir.join("fhui.smf");
+
+    // Boot, focus the category panel, enter the first category, launch its
+    // first game.
+    let mut emu = run_scripted(&menu, 300, |frame| {
+        if (60..63).contains(&frame) {
+            vec![KEY_LEFT]
+        } else if (150..153).contains(&frame) || (270..273).contains(&frame) {
+            vec![KEY_Z]
+        } else {
+            vec![]
+        }
+    })
+    .expect("run Chinese FHUI menu");
+    assert_ne!(emu.filename, menu, "menu did not launch a child game");
+
+    assert!(emu.try_return_to_parent().expect("return to fhui menu"));
+    assert_eq!(emu.filename, menu);
+    assert!(
+        emu.menu_context.is_some(),
+        "return did not restore the menu's saved context"
+    );
+
+    // Let the menu run its restore branch.
+    for _ in 0..240 {
+        emu.set_buttons(&[]);
+        emu.tick();
+        emu.draw();
+    }
+    assert_eq!(
+        emu.vm.vars.get("selectdirname").map(String::as_str),
+        Some("/Action Game/"),
+        "menu did not restore the suspended category (selectdirname = {:?})",
+        emu.vm.vars.get("selectdirname")
+    );
+    assert_eq!(
+        emu.vm.vars.get("currentfilename").map(String::as_str),
+        Some("/Action Game/Little Mermaid"),
+        "menu did not restore the suspended selection (currentfilename = {:?})",
+        emu.vm.vars.get("currentfilename")
+    );
+    assert!(
+        emu.renderer.sprite_override_count() > 0,
+        "restored menu did not re-bind the selection thumbnail"
+    );
+}
+
 /// Regression test for the EmulatorJS restart button: a reset must relaunch
 /// the game that was loaded instead of only clearing the state of the inner
 /// SSL scene the game has switched itself to.
@@ -1111,41 +1172,65 @@ fn back_action_returns_to_parent_smf() {
         .expect("back action at the menu failed"));
 }
 
+/// Returning from a launched game must restore the menu's saved navigation
+/// context: the parent is reloaded fresh and the menu's `GetContext` restore
+/// branch rebuilds the view it suspended from (the real device's flow: the
+/// menu shell relaunches after a game exits and replays the context).
 #[test]
 #[ignore = "requires local Native32 game assets (set NATIVE32_GAME_DIR)"]
-fn direct_smf_child_launch_reloads_parent() {
-    let dir = game_dir().expect("no game directory found");
-    let parent = find_asset(&dir, "FHUI.smf").expect("FHUI.smf not found");
-    let mut games = Vec::new();
-    collect_games(&dir, &mut games);
-    let child = games
-        .into_iter()
-        .find(|path| {
-            *path != parent
-                && path
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("smf"))
-        })
-        .expect("no child SMF found");
-    let child_name = child
-        .strip_prefix(parent.parent().expect("parent SMF has no directory"))
-        .expect("child SMF is outside the content root")
-        .to_string_lossy()
-        .replace('\\', "/");
-    let mut emu = Emulator::from_path(parent.clone(), 100).expect("load parent SMF");
-    emu.menu_context = Some("category=2;game=4".to_string());
+fn fhui_menu_restores_context_after_return() {
+    let dir = match game_dir() {
+        Some(d) => d,
+        None => {
+            eprintln!("skipping: no game directory found (set NATIVE32_GAME_DIR)");
+            return;
+        }
+    };
+    let menu = match find_asset(&dir, "FHUI.smf") {
+        Some(p) => p,
+        None => {
+            eprintln!("skipping: FHUI.smf not found under {}", dir.display());
+            return;
+        }
+    };
 
-    emu.content_loader.queue_child(&child_name);
-    emu.tick();
-    assert_eq!(emu.filename, child);
-    assert_eq!(emu.menu_context, None);
-    assert!(emu.try_return_to_parent().expect("return to direct parent"));
-    assert_eq!(emu.filename, parent);
-    assert_eq!(emu.menu_context, None);
-    assert!(!emu
-        .try_return_to_parent()
-        .expect("back action at the direct parent failed"));
+    // Enter the first category, launch its first game.
+    let mut emu = run_scripted(&menu, 260, |frame| {
+        if (50..53).contains(&frame) || (110..113).contains(&frame) {
+            vec![KEY_Z]
+        } else {
+            vec![]
+        }
+    })
+    .expect("run FHUI menu");
+    assert_ne!(emu.filename, menu, "menu did not launch a child game");
+
+    assert!(emu.try_return_to_parent().expect("return to FHUI"));
+    assert_eq!(emu.filename, menu);
+    assert!(
+        emu.menu_context.is_some(),
+        "return did not restore the menu's saved context"
+    );
+
+    // Let the menu run its restore branch, then check it rebuilt the view it
+    // suspended from.
+    for _ in 0..180 {
+        emu.set_buttons(&[]);
+        emu.tick();
+        emu.draw();
+    }
+    assert!(
+        emu.vm
+            .vars
+            .get("selectdirname")
+            .is_some_and(|v| v.starts_with("/EPOP")),
+        "menu did not restore the suspended category (selectdirname = {:?})",
+        emu.vm.vars.get("selectdirname")
+    );
+    assert!(
+        emu.renderer.sprite_override_count() > 0,
+        "restored menu did not rebuild its game list images"
+    );
 }
 
 #[test]
@@ -1216,14 +1301,25 @@ fn na32ui_return_rebuilds_game_list() {
     .expect("run NA32UI menu");
     assert_ne!(emu.filename, menu, "NA32UI did not launch a child SMF");
     assert!(emu.try_return_to_parent().expect("return to NA32UI"));
-    assert_eq!(emu.menu_context, None);
+    assert_eq!(emu.filename, menu);
+    assert!(
+        emu.menu_context.is_some(),
+        "return did not restore NA32UI's saved context"
+    );
 
     for _ in 0..180 {
         emu.set_buttons(&[]);
         emu.tick();
         emu.draw();
     }
-    for frame in 0..120 {
+    assert!(
+        emu.renderer.sprite_override_count() > 0,
+        "NA32UI did not rebuild its game-list images"
+    );
+
+    // The restored menu must accept input: confirm launches the highlighted
+    // game again.
+    for frame in 0..90 {
         let buttons = if (10..13).contains(&frame) {
             vec![KEY_Z]
         } else {
@@ -1233,9 +1329,9 @@ fn na32ui_return_rebuilds_game_list() {
         emu.tick();
         emu.draw();
     }
-    assert!(
-        emu.renderer.sprite_override_count() > 0,
-        "NA32UI did not rebuild its game-list images"
+    assert_ne!(
+        emu.filename, menu,
+        "restored NA32UI did not respond to input"
     );
 }
 

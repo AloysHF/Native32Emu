@@ -37,9 +37,11 @@ the archive's only `.smf`, preferring the one that matches the archive name.
 The archive's directory layout is preserved during extraction, so relative
 references to `.SSL` scenes and `.mpg` videos keep working. When the loaded SMF
 launches a child SMF through `StartGame`,
-pressing **ESC** during gameplay reloads the parent as a fresh session.
-Internal `.ssl` scene changes remain part of the child game and do not add
-return levels. Pressing **ESC** on the initial menu exits the emulator.
+pressing **ESC** during gameplay reloads the parent, which restores the menu
+context the parent saved before launching, so the menu rebuilds the view it
+suspended from. Internal `.ssl` scene changes remain part of the child game
+and do not add return levels. Pressing **ESC** on the initial menu exits the
+emulator.
 
 The same relationship-based behavior applies outside ZIP mode: a directly
 loaded SMF can launch a child and receive control again, while a directly

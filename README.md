@@ -56,8 +56,9 @@ display settings, and all command-line options.
 Install **Native32 (Native32Emu)** from RetroArch's Core Downloader, or install
 the release files manually, then load a supported game through **Load Content**.
 Press RetroPad **Select** to return from a child game to the SMF that launched
-it. When there is no parent SMF, Select is ignored, so pressing it while
-playing a directly loaded game never closes the core. This works for directly
+it; the menu reloads with its saved context, restoring the view it was on
+before the launch. When there is no parent SMF, Select is ignored, so pressing
+it while playing a directly loaded game never closes the core. This works for directly
 loaded menus as well as ZIP packages.
 Both analog sticks also control movement, with a 50% deadzone.
 

@@ -64,8 +64,10 @@ releases the direction. Diagonal movement is supported. No frontend
 ### Return Behavior
 
 RetroPad **Select** is the core's back action. When one `.smf` application
-launches another through `StartGame`, pressing Select reloads the parent SMF as
-a fresh session. Nested SMF launches can be unwound one level at a time.
+launches another through `StartGame`, pressing Select reloads the parent SMF,
+which restores the menu context the parent saved before launching, so the menu
+rebuilds the view it suspended from. Nested SMF launches can be unwound one
+level at a time.
 Internal `.ssl` scene transitions do not create extra return levels, so Select
 from any scene in the launched game still returns to its SMF launcher.
 
