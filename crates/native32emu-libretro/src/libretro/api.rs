@@ -148,17 +148,22 @@ pub extern "C" fn retro_set_controller_port_device(_port: u32, _device: u32) {
 pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
     guard(false, || unsafe {
         RETURN_BUTTON_DOWN.store(false, Ordering::Relaxed);
+        if info.is_null() {
+            return fail(MISSING_CONTENT_PATH);
+        }
         let game_info = &*info;
 
         // Check if path is valid
         if game_info.path.is_null() {
-            return fail("Native32: the frontend passed no content path.");
+            return fail(MISSING_CONTENT_PATH);
         }
 
         let path = match CStr::from_ptr(game_info.path).to_str() {
             Ok(p) => p,
             Err(e) => {
-                return fail(&format!("Native32: the content path is not valid UTF-8 ({e})."));
+                return fail(&format!(
+                    "Native32: the content path is not valid UTF-8 ({e})."
+                ));
             }
         };
         let requested = std::path::PathBuf::from(path);
@@ -221,6 +226,9 @@ pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
         }
     })
 }
+
+const MISSING_CONTENT_PATH: &str =
+    "The frontend passed no content path; this core loads content from a file path only.";
 
 /// Report a load failure to both the log and the frontend's on-screen message.
 fn fail(message: &str) -> bool {
