@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 
+use native32emu_core::content_entry;
 use native32emu_core::emulator::Emulator;
 
 use crate::standalone::cli::Cli;
@@ -107,6 +108,11 @@ fn main() -> Result<()> {
 
     if !game_path.exists() {
         eprintln!("Error: Game file not found: {}", game_path.display());
+        std::process::exit(1);
+    }
+
+    if content_entry::is_scene(&game_path) {
+        eprintln!("Error: {}", content_entry::scene_rejection(&game_path));
         std::process::exit(1);
     }
 

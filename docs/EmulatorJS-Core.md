@@ -216,9 +216,9 @@ No game data is deployed: `site/play.html` asks each visitor for a local ZIP.
 
 ## Implementation notes
 
-- `retro_get_system_info` advertises `smf|sgm|ssl|zip` with
-  `need_fullpath = true` and `block_extract = true`, so EmulatorJS hands over
-  the whole archive instead of a single entry.
+- `retro_get_system_info` advertises `smf|sgm|zip` with `need_fullpath = true`
+  and `block_extract = true`, so EmulatorJS hands over the whole archive instead
+  of a single entry.
 - On Emscripten the core skips the libretro log interface (its variadic
   callback ABI does not survive the wasm bridge) and writes log messages to the
   browser console as `[Native32Emu] level: message`.
