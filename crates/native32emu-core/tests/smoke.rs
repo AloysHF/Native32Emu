@@ -161,8 +161,8 @@ fn smoke_all_games() {
 /// has visible content, Ok(false) if it is blank, or Err on a load failure.
 /// A panic inside the emulator will fail the test via the normal unwinding.
 fn run_one(path: &Path) -> Result<bool, String> {
-    let mut emu =
-        Emulator::from_path(path.to_path_buf(), 100).map_err(|e| format!("failed to load: {e}"))?;
+    let mut emu = Emulator::from_scene(path.to_path_buf(), 100)
+        .map_err(|e| format!("failed to load: {e}"))?;
 
     for _ in 0..FRAMES {
         emu.set_buttons(&[]);
@@ -271,8 +271,8 @@ fn run_scripted<F>(path: &Path, frames: u32, mut input_for_frame: F) -> Result<E
 where
     F: FnMut(u32) -> Vec<u16>,
 {
-    let mut emu =
-        Emulator::from_path(path.to_path_buf(), 100).map_err(|e| format!("failed to load: {e}"))?;
+    let mut emu = Emulator::from_scene(path.to_path_buf(), 100)
+        .map_err(|e| format!("failed to load: {e}"))?;
     for frame in 0..frames {
         let pressed = input_for_frame(frame);
         emu.set_buttons(&pressed);
@@ -342,7 +342,7 @@ fn gunfire_menu_advances_on_confirm() {
 fn nav_select_na32_loads_native32_menu() {
     let dir = game_dir().expect("no game directory found");
     let selector = find_asset(&dir, "SELECT.SSL").expect("SELECT.SSL not found");
-    let mut emu = Emulator::from_path(selector, 100).expect("load platform selector");
+    let mut emu = Emulator::from_scene(selector, 100).expect("load platform selector");
 
     VmHost::get_url(&mut emu, "NULL", "NAV+NAV_SelectNa32+reValue");
     assert_eq!(
@@ -368,7 +368,7 @@ fn nav_select_na32_loads_native32_menu() {
 fn nav_select_kok_restarts_selector() {
     let dir = game_dir().expect("no game directory found");
     let selector = find_asset(&dir, "SELECT.SSL").expect("SELECT.SSL not found");
-    let mut emu = Emulator::from_path(selector, 100).expect("load platform selector");
+    let mut emu = Emulator::from_scene(selector, 100).expect("load platform selector");
     let original = emu.filename.clone();
     emu.vm
         .vars
@@ -405,7 +405,7 @@ fn metal_storm_continue_loads_next_content() {
     std::fs::write(format!("{}.ssl_sav", game_start.display()), "|1|1|10|0|00")
         .expect("seed Metal Storm save data");
 
-    let mut emu = Emulator::from_path(game_start, 100).expect("load Metal Storm start screen");
+    let mut emu = Emulator::from_scene(game_start, 100).expect("load Metal Storm start screen");
     VmHost::get_url(
         &mut emu,
         "/NA32SSL /ENGLISH /METAL   /MSOVER.ssl",
@@ -934,7 +934,7 @@ fn basketball_keeps_background_music_during_gameplay() {
 fn mission_express_fire1_recovers_control_after_jump() {
     let dir = game_dir().expect("no game directory found");
     let game = find_asset(&dir, "FIRE1.SSL").expect("FIRE1.SSL not found");
-    let mut emu = Emulator::from_path(game, 100).expect("load Mission Express Fire1");
+    let mut emu = Emulator::from_scene(game, 100).expect("load Mission Express Fire1");
 
     let mut saw_uncontrollable_jump = false;
     for frame in 0..360 {

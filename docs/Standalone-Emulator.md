@@ -19,7 +19,7 @@ The binary is produced at `target/release/native32-emu` (`.exe` on Windows).
 
 ## Loading Games
 
-The standalone emulator accepts `.smf`, `.sgm`, `.ssl`, and `.zip` files.
+The standalone emulator accepts `.smf`, `.sgm`, and `.zip` files.
 
 ```bash
 # Load a game directly
@@ -66,7 +66,7 @@ native32-emu [OPTIONS] <GAME_PATH>
 
 | Option | Value | Default | Description |
 |---|---|---|---|
-| `<GAME_PATH>` | path | *required* | Path to the game file (`.smf`, `.sgm`, `.ssl`, or `.zip`). For `.zip` files, extracts and loads `FHUI.smf`/`NA32UI.smf`, or the package's single game SMF. |
+| `<GAME_PATH>` | path | *required* | Path to the game file (`.smf`, `.sgm`, or `.zip`). For `.zip` files, extracts and loads `FHUI.smf`/`NA32UI.smf`, or the package's single game SMF. |
 | `-s, --scale <N>` | `1`–`16` | `1` | Integer scaling factor for the window. |
 | `-f, --fullscreen` | flag | off | Run in borderless fullscreen at the desktop resolution. |
 | `-v, --volume <N>` | `0`–`100` | `100` | Volume level (`0` = mute, `100` = original). |

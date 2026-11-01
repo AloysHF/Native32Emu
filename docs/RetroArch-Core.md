@@ -24,7 +24,7 @@ RetroArch's `cores/` directory, and copy `native32emu_libretro.info` to its
 
 1. Open RetroArch and select **Load Core > Native32 (Native32Emu)**.
 2. Select **Load Content**.
-3. Choose a `.smf`, `.sgm`, `.ssl`, or `.zip` file.
+3. Choose a `.smf`, `.sgm`, or `.zip` file.
 
 ## Mobile Platforms
 
@@ -39,7 +39,7 @@ platform-specific installation requirements:
 - Video output using the XRGB8888 pixel format
 - Stereo audio output with looping MP3 music and RAW PCM sound effects
 - RetroPad input handling
-- `.smf`, `.sgm`, `.ssl`, and `.zip` content loading
+- `.smf`, `.sgm`, and `.zip` content loading
 - Save states
 - Live core options
 - Emulator-handled cheats through RetroArch's cheat interface

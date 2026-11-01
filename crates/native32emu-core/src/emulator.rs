@@ -3,6 +3,7 @@
 use crate::action_vm::{ActionProp, ActionVM, VmHost};
 use crate::audio_engine::AudioEngine;
 use crate::cheats::CheatManager;
+use crate::content_entry;
 use crate::content_loader::{ContentLoadKind, ContentLoader};
 use crate::file_loader::{FrameObject, Native32Reader, ObjectType};
 use crate::frame_player::FramePlayer;
@@ -90,9 +91,23 @@ pub struct Emulator {
 impl Emulator {
     /// Create a new emulator from a game file path.
     ///
-    /// Supports .smf, .sgm, .ssl, and .zip files. For .zip files, extracts
-    /// the archive and loads FHUI.smf or NA32UI.smf from its root.
+    /// Supports .smf, .sgm and .zip files. For .zip files, extracts the
+    /// archive and loads FHUI.smf or NA32UI.smf from its root. An .ssl scene
+    /// is rejected; use [`Emulator::from_scene`] to load one.
     pub fn from_path(path: PathBuf, volume: u32) -> Result<Self> {
+        if content_entry::is_scene(&path) {
+            anyhow::bail!(content_entry::scene_rejection(&path));
+        }
+        Self::from_any_path(path, volume)
+    }
+
+    /// Create a new emulator from a single SSL scene, bypassing the entry-point
+    /// rule. For scene-level tests and tooling only.
+    pub fn from_scene(path: PathBuf, volume: u32) -> Result<Self> {
+        Self::from_any_path(path, volume)
+    }
+
+    fn from_any_path(path: PathBuf, volume: u32) -> Result<Self> {
         // Check if this is a ZIP file
         let is_zip = is_zip_file(&path);
         let (game_path, _temp_dir) = if is_zip {

@@ -8,9 +8,10 @@ use super::constants::*;
 use super::types::*;
 use native32emu_core::emulator::Emulator;
 use native32emu_core::input_handler::InputHandler;
-use std::ffi::{c_char, c_void, CStr};
+use std::ffi::{c_char, c_void, CStr, CString};
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
 
 /// Global emulator instance
 static mut EMULATOR: Option<Emulator> = None;
@@ -123,7 +124,7 @@ pub extern "C" fn retro_get_system_info(info: *mut retro_system_info) {
         (*info) = retro_system_info {
             library_name: c"Native32Emu".as_ptr(),
             library_version: concat!(env!("CARGO_PKG_VERSION"), "\0").as_ptr() as *const c_char,
-            valid_extensions: c"smf|sgm|ssl|zip".as_ptr(),
+            valid_extensions: valid_extensions(),
             need_fullpath: true,
             // A .zip is a complete Native32 game package; the core extracts it
             // itself and boots its menu entry point, so RetroArch must hand over
@@ -131,6 +132,17 @@ pub extern "C" fn retro_get_system_info(info: *mut retro_system_info) {
             block_extract: true,
         };
     }
+}
+
+/// The extensions this core accepts as launch content.
+fn valid_extensions() -> *const c_char {
+    static EXTENSIONS: OnceLock<CString> = OnceLock::new();
+    EXTENSIONS
+        .get_or_init(|| {
+            CString::new(native32emu_core::content_entry::launchable_extensions_field())
+                .expect("extension list contains no NUL bytes")
+        })
+        .as_ptr()
 }
 
 /// Set controller port device
@@ -221,7 +233,7 @@ pub extern "C" fn retro_load_game(info: *const retro_game_info) -> bool {
                 true
             }
             Err(e) => fail(&format!(
-                "Native32: failed to load this game.\n{e}\n\nSupported content: .smf, .sgm, .ssl or a .zip game package."
+                "Native32: failed to load this game.\n{e}\n\nSupported content: .smf, .sgm or a .zip game package."
             )),
         }
     })
@@ -744,6 +756,16 @@ fn query_buttons_with(state: impl Fn(u32, u32, u32) -> i16) -> Vec<u16> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn advertised_extensions_exclude_scenes() {
+        let extensions = unsafe { CStr::from_ptr(valid_extensions()) }
+            .to_str()
+            .expect("extension list is UTF-8");
+
+        assert_eq!(extensions, "smf|sgm|zip");
+        assert!(!extensions.split('|').any(|ext| ext == "ssl"));
+    }
 
     fn stick_buttons(index: u32, x: i16, y: i16) -> Vec<u16> {
         query_buttons_with(|device, stick, axis| {
