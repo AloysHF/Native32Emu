@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "core": "native32emu",
+  "so_name": "libnative32emu.so",
+  "system": "native32",
+  "display_name": {
+    "en": "Native32",
+    "zh": "Native32"
+  },
+  "short_name": "Native32",
+  "manufacturer": "Sunplus",
+  "supported_extensions": ["smf", "sgm", "ssl", "zip"],
+  "save_state_format": 1,
+  "firmware": [],
+  "input": {
+    "preset": "dpad-ab-select"
+  },
+  "video": {
+    "orientation": "landscape",
+    "pixel_format": "xrgb8888"
+  },
+  "notes": {
+    "en": "Loads .smf, .sgm and .ssl content, or a .zip game package containing a whole collection.",
+    "zh": "支持 .smf、.sgm、.ssl 内容，或包含整套游戏的 .zip 资源包。"
+  }
+}
