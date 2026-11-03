@@ -1,7 +1,7 @@
 # Native32 Emulator —— A Native32 game emulator written in Rust
 
 <p align="center">
-  <img src="res/logo-banner.svg" alt="Native32 Emulator" width="600">
+  <img src="res/logo-banner.png" alt="Native32 Emulator" width="600">
 </p>
 
 <p align="center">
