@@ -12,7 +12,7 @@
   <a href="https://github.com/AloysHF/Native32Emu/releases"><img src="https://img.shields.io/github/downloads/AloysHF/Native32Emu/total" alt="Downloads"></a>
   <a href="https://sonarcloud.io/dashboard?id=AloysHF_Native32Emu"><img src="https://sonarcloud.io/api/project_badges/measure?project=AloysHF_Native32Emu&metric=alert_status" alt="Quality Gate Status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg" alt="License: BSD 3-Clause"></a>
-  <a href="https://discord.gg/7XDdSrYD"><img src="https://img.shields.io/badge/Discord-Join%20Us-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
+  <a href="https://discord.gg/E4SQjXUkZy"><img src="https://img.shields.io/badge/Discord-Join%20Us-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
   <a href="https://qm.qq.com/q/LAO7DKAWUC"><img src="https://img.shields.io/badge/QQ%E7%BE%A4-Join%20Us-12B7F5?logo=tencent-qq&logoColor=white" alt="QQ Group"></a>
 </p>
 
